@@ -1,6 +1,6 @@
 # Primary DB Instance
 resource "aws_db_instance" "primary" {
-  count = var.is_primary ? 1 : 0
+  provider = aws.primary
 
   engine                  = var.engine
   engine_version          = var.engine_version
@@ -23,37 +23,18 @@ resource "aws_db_instance" "primary" {
   }
 }
 
-# Same-Region Read Replica
-resource "aws_db_instance" "same_region_replica" {
-  count = var.create_same_region_replica ? 1 : 0
-
-  provider = aws.primary
-
-  replicate_source_db    = var.replica_source_id
-  instance_class         = var.instance_class
-  storage_type           = var.storage_type
-  skip_final_snapshot    = true
-  vpc_security_group_ids = var.security_group_ids
-  db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name
-  publicly_accessible    = false
-  tags = {
-    Environment = "${var.environment}-replica"
-  }
-}
-
 # Cross-Region Read Replica
 resource "aws_db_instance" "cross_region_replica" {
-  count = (!var.is_primary && !var.create_same_region_replica) ? 1 : 0
-
   provider = aws.dr
 
   replicate_source_db    = var.source_db_arn
   instance_class         = var.instance_class
   storage_type           = var.storage_type
-  skip_final_snapshot    = true
   vpc_security_group_ids = var.security_group_ids
   db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name
   publicly_accessible    = false
+  skip_final_snapshot    = true
+
   tags = {
     Environment = "${var.environment}-dr-replica"
   }

@@ -9,22 +9,10 @@ variable "environment" {
   default     = "dev"
 }
 
-variable "is_primary" {
-  description = "Whether this is the primary database"
-  type        = bool
-  default     = true
-}
-
 variable "source_db_arn" {
   description = "ARN of primary DB for replica creation"
   type        = string
   default     = ""
-}
-
-variable "create_same_region_replica" {
-  description = "Create read replica in same region"
-  type        = bool
-  default     = false
 }
 
 variable "replica_source_id" {
@@ -100,5 +88,5 @@ variable "backup_retention_days" {
 variable "multi_az" {
   description = "Enable Multi-AZ deployment"
   type        = bool
-  default     = false
+  default     = true
 }
