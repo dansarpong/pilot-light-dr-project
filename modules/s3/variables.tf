@@ -1,8 +1,3 @@
-variable "region" {
-  description = "Region for the primary S3 bucket"
-  type        = string
-}
-
 variable "environment" {
   description = "Environment name (dev/staging/prod)"
   type        = string
@@ -11,11 +6,6 @@ variable "environment" {
 
 variable "bucket_name" {
   description = "Base name for the S3 bucket"
-  type        = string
-}
-
-variable "dr_region" {
-  description = "Disaster recovery region"
   type        = string
 }
 
@@ -28,9 +18,9 @@ variable "versioning_enabled" {
 variable "lifecycle_rules" {
   description = "Lifecycle configuration rules"
   type = list(object({
-    id       = string
-    prefix   = string
-    enabled  = bool
+    id      = string
+    prefix  = string
+    enabled = bool
     transition = object({
       days          = number
       storage_class = string
@@ -45,10 +35,23 @@ variable "lifecycle_rules" {
 variable "replication_role_arn" {
   description = "ARN of IAM role for cross-region replication"
   type        = string
+  default     = ""
 }
 
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
   default     = {}
+}
+
+variable "is_dr" {
+  description = "Whether this is a DR bucket"
+  type        = bool
+  default     = false
+}
+
+variable "destination_bucket_arn" {
+  description = "ARN of the destination bucket for replication"
+  type        = string
+  default     = ""
 }

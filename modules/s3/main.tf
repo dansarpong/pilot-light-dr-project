@@ -1,61 +1,28 @@
-provider "aws" {
-  region = var.region
+# Bucket
+resource "aws_s3_bucket" "this" {
+  bucket = "${var.bucket_name}-${data.aws_region.current.name}"
+
+  tags = var.tags
 }
 
-# Primary Bucket
-resource "aws_s3_bucket" "primary" {
-  bucket = "${var.environment}-${var.bucket_name}-${var.region}"
-
-  tags = merge({
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-    Project     = "PilotLight-DR"
-  }, var.tags)
-}
-
-# Primary Bucket Versioning
-resource "aws_s3_bucket_versioning" "primary_versioning" {
-  bucket = aws_s3_bucket.primary.id
+# Bucket Versioning
+resource "aws_s3_bucket_versioning" "versioning" {
+  bucket = aws_s3_bucket.this.id
   versioning_configuration {
     status = var.versioning_enabled ? "Enabled" : "Suspended"
   }
 }
 
-# Primary Bucket ACL
-resource "aws_s3_bucket_acl" "primary_acl" {
-  bucket = aws_s3_bucket.primary.id
+# Bucket ACL
+resource "aws_s3_bucket_acl" "acl" {
+  bucket = aws_s3_bucket.this.id
   acl    = "private"
 }
 
-# DR Bucket
-resource "aws_s3_bucket" "dr" {
-  provider = aws.dr
-  bucket   = "${var.environment}-${var.bucket_name}-${var.dr_region}"
-
-  tags = merge({
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-    Project     = "PilotLight-DR"
-  }, var.tags)
-}
-
-# DR Bucket Versioning
-resource "aws_s3_bucket_versioning" "dr_versioning" {
-  bucket = aws_s3_bucket.dr.id
-  versioning_configuration {
-    status = var.versioning_enabled ? "Enabled" : "Suspended"
-  }
-}
-
-# DR Bucket ACL
-resource "aws_s3_bucket_acl" "dr_acl" {
-  bucket = aws_s3_bucket.dr.id
-  acl    = "private"
-}
-
-# Replication Configuration
+# Replication Configuration for primary bucket
 resource "aws_s3_bucket_replication_configuration" "replication" {
-  bucket = aws_s3_bucket.primary.id
+  count  = var.is_dr ? 0 : 1
+  bucket = aws_s3_bucket.this.id
   role   = var.replication_role_arn
 
   rule {
@@ -63,8 +30,7 @@ resource "aws_s3_bucket_replication_configuration" "replication" {
     status = "Enabled"
 
     destination {
-      bucket = aws_s3_bucket.dr.arn
-      storage_class = "STANDARD_IA"
+      bucket = var.destination_bucket_arn
     }
 
     filter {
@@ -72,15 +38,13 @@ resource "aws_s3_bucket_replication_configuration" "replication" {
     }
   }
 
-  depends_on = [
-    aws_s3_bucket_versioning.primary_versioning,
-    aws_s3_bucket_versioning.dr_versioning
-  ]
+  depends_on = [aws_s3_bucket_versioning.versioning]
 }
 
-# Lifecycle Configuration
-resource "aws_s3_bucket_lifecycle_configuration" "primary_lifecycle" {
-  bucket = aws_s3_bucket.primary.id
+# Lifecycle Configuration for primary bucket
+resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
+  count  = var.is_dr ? 0 : 1
+  bucket = aws_s3_bucket.this.id
 
   dynamic "rule" {
     for_each = var.lifecycle_rules
