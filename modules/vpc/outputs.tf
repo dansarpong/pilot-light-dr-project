@@ -17,8 +17,3 @@ output "public_route_table_id" {
   description = "Public route table ID"
   value       = aws_route_table.public.id
 }
-
-output "security_group_id" {
-  description = "Default security group ID"
-  value       = aws_security_group.default.id
-}

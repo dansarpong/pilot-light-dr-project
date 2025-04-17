@@ -4,37 +4,34 @@ resource "aws_vpc" "vpc" {
   enable_dns_hostnames = true
 
   tags = {
-    Name        = "${var.environment}-${var.region}-vpc"
+    Name        = "${var.environment}-${data.aws_region.current.name}-vpc"
     Environment = var.environment
   }
 }
 
-# Data Source for Availability Zones
-data "aws_availability_zones" "available" {}
-
 # Public Subnets
 resource "aws_subnet" "public" {
-  count = 2
-  vpc_id            = aws_vpc.vpc.id
-  cidr_block        = cidrsubnet(var.cidr_block, 8, count.index)
-  availability_zone = data.aws_availability_zones.available.names[count.index]
+  count                   = 2
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = cidrsubnet(var.cidr_block, 8, count.index)
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.environment}-${var.region}-public-${count.index}"
+    Name        = "${var.environment}-${data.aws_region.current.name}-public-${count.index}"
     Environment = var.environment
   }
 }
 
 # Private Subnets
 resource "aws_subnet" "private" {
-  count = 2
+  count             = 2
   vpc_id            = aws_vpc.vpc.id
   cidr_block        = cidrsubnet(var.cidr_block, 8, count.index + 10)
   availability_zone = data.aws_availability_zones.available.names[count.index]
 
   tags = {
-    Name        = "${var.environment}-${var.region}-private-${count.index}"
+    Name        = "${var.environment}-${data.aws_region.current.name}-private-${count.index}"
     Environment = var.environment
   }
 }
@@ -44,12 +41,12 @@ resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
-    Name        = "${var.environment}-${var.region}-igw"
+    Name        = "${var.environment}-${data.aws_region.current.name}-igw"
     Environment = var.environment
   }
 }
 
-# Route Table for Public Subnets
+# Route Tables
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.vpc.id
 
@@ -59,17 +56,16 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name        = "${var.environment}-${var.region}-public-rt"
+    Name        = "${var.environment}-${data.aws_region.current.name}-public-rt"
     Environment = var.environment
   }
 }
 
-# Route Table for Private Subnets
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
-    Name        = "${var.environment}-${var.region}-private-rt"
+    Name        = "${var.environment}-${data.aws_region.current.name}-private-rt"
     Environment = var.environment
   }
 }
