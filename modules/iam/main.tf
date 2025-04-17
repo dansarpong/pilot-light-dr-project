@@ -13,10 +13,7 @@ resource "aws_iam_role" "this" {
     }]
   })
 
-  tags = merge({
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-  }, var.tags)
+  tags = var.tags
 }
 
 # Custom Policies
@@ -29,10 +26,7 @@ resource "aws_iam_policy" "this" {
     environment     = var.environment
   })
 
-  tags = merge({
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-  }, var.tags)
+  tags = var.tags
 }
 
 # Attach custom policies
