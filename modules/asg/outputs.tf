@@ -1,14 +1,29 @@
+output "asg_id" {
+  description = "ID of the Auto Scaling Group"
+  value       = aws_autoscaling_group.this.id
+}
+
 output "asg_name" {
-  description = "Auto Scaling Group name"
-  value       = aws_autoscaling_group.pilot_light_asg.name
+  description = "Name of the Auto Scaling Group"
+  value       = aws_autoscaling_group.this.name
 }
 
-output "launch_template_id" {
-  description = "Launch Template ID"
-  value       = aws_launch_template.pilot_light.id
+output "asg_arn" {
+  description = "ARN of the Auto Scaling Group"
+  value       = aws_autoscaling_group.this.arn
 }
 
-output "instance_security_group" {
-  description = "Security group associated with instances"
-  value       = aws_launch_template.pilot_light.network_interfaces[0].security_groups[0]
+output "lt_id" {
+  description = "ID of the Launch Template"
+  value       = aws_launch_template.this.id
+}
+
+output "lt_name" {
+  description = "Name of the Launch Template"
+  value       = aws_launch_template.this.name
+}
+
+output "lt_arn" {
+  description = "ARN of the Launch Template"
+  value       = aws_launch_template.this.arn
 }
