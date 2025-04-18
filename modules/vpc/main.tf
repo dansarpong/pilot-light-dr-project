@@ -4,8 +4,7 @@ resource "aws_vpc" "vpc" {
   enable_dns_hostnames = true
 
   tags = {
-    Name        = "${var.environment}-${data.aws_region.current.name}-vpc"
-    Environment = var.environment
+    Name = "${var.environment}-${data.aws_region.current.name}-vpc"
   }
 }
 
@@ -18,8 +17,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.environment}-${data.aws_region.current.name}-public-${count.index}"
-    Environment = var.environment
+    Name = "${var.environment}-${data.aws_region.current.name}-public-${count.index}"
   }
 }
 
@@ -31,8 +29,7 @@ resource "aws_subnet" "private" {
   availability_zone = data.aws_availability_zones.available.names[count.index]
 
   tags = {
-    Name        = "${var.environment}-${data.aws_region.current.name}-private-${count.index}"
-    Environment = var.environment
+    Name = "${var.environment}-${data.aws_region.current.name}-private-${count.index}"
   }
 }
 
@@ -41,8 +38,7 @@ resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
-    Name        = "${var.environment}-${data.aws_region.current.name}-igw"
-    Environment = var.environment
+    Name = "${var.environment}-${data.aws_region.current.name}-igw"
   }
 }
 
@@ -56,8 +52,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name        = "${var.environment}-${data.aws_region.current.name}-public-rt"
-    Environment = var.environment
+    Name = "${var.environment}-${data.aws_region.current.name}-public-rt"
   }
 }
 
@@ -65,8 +60,7 @@ resource "aws_route_table" "private" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
-    Name        = "${var.environment}-${data.aws_region.current.name}-private-rt"
-    Environment = var.environment
+    Name = "${var.environment}-${data.aws_region.current.name}-private-rt"
   }
 }
 
