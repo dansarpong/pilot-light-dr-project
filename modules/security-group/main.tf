@@ -1,19 +1,17 @@
 # Security group
-resource "aws_security_group" "sg" {
+resource "aws_security_group" "this" {
   name        = "${var.environment}-${var.name}"
   description = var.description
   vpc_id      = var.vpc_id
 
-  tags = merge({
-    Environment = var.environment
-  }, var.tags)
+  tags = var.tags
 }
 
 # Ingress rules
 resource "aws_security_group_rule" "ingress" {
   for_each = { for idx, rule in var.ingress_rules : idx => rule }
 
-  security_group_id = aws_security_group.sg.id
+  security_group_id = aws_security_group.this.id
   type              = "ingress"
   protocol          = each.value.protocol
   from_port         = each.value.from_port
@@ -28,7 +26,7 @@ resource "aws_security_group_rule" "ingress" {
 resource "aws_security_group_rule" "egress" {
   for_each = { for idx, rule in var.egress_rules : idx => rule }
 
-  security_group_id = aws_security_group.sg.id
+  security_group_id = aws_security_group.this.id
   type              = "egress"
   protocol          = each.value.protocol
   from_port         = each.value.from_port
