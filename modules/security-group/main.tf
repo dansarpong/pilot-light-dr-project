@@ -18,7 +18,7 @@ resource "aws_security_group_rule" "ingress" {
   to_port           = each.value.to_port
   description       = each.value.description
 
-  cidr_blocks              = each.value.cidr_blocks
+  cidr_blocks              = length(each.value.cidr_blocks) > 0 ? each.value.cidr_blocks : null
   source_security_group_id = length(each.value.security_groups) > 0 ? each.value.security_groups[0] : null
 }
 
@@ -33,6 +33,6 @@ resource "aws_security_group_rule" "egress" {
   to_port           = each.value.to_port
   description       = each.value.description
 
-  cidr_blocks              = each.value.cidr_blocks
+  cidr_blocks              = length(each.value.cidr_blocks) > 0 ? each.value.cidr_blocks : null
   source_security_group_id = length(each.value.security_groups) > 0 ? each.value.security_groups[0] : null
 }

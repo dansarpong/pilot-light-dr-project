@@ -29,6 +29,7 @@ variable "ingress_rules" {
     cidr_blocks      = list(string)
     security_groups  = list(string)
   }))
+  default = []
 }
 
 variable "egress_rules" {
@@ -41,6 +42,7 @@ variable "egress_rules" {
     cidr_blocks      = list(string)
     security_groups  = list(string)
   }))
+  default = []
 }
 
 variable "tags" {
