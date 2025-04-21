@@ -1,6 +1,6 @@
 # IAM Role
 resource "aws_iam_role" "this" {
-  name = "${var.environment}-${var.name}-role"
+  name = var.name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -20,11 +20,8 @@ resource "aws_iam_role" "this" {
 resource "aws_iam_policy" "this" {
   for_each = var.policies
 
-  name   = "${var.environment}-${var.name}-${each.key}"
-  policy = templatefile("${path.module}/policies/policy.tmpl", {
-    policy_document = each.value
-    environment     = var.environment
-  })
+  name   = "${var.name}-${each.key}"
+  policy = each.value
 
   tags = var.tags
 }

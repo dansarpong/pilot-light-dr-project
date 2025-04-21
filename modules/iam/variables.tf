@@ -1,22 +1,21 @@
 variable "name" {
-  description = "Name suffix for IAM resources"
+  description = "Name suffix for IAM role"
   type        = string
 }
 
 variable "environment" {
-  description = "Environment name (dev/staging/prod)"
+  description = "Environment name"
   type        = string
-  default     = "dev"
 }
 
 variable "assume_role_service" {
-  description = "AWS service to assume role (e.g., ec2.amazonaws.com)"
+  description = "AWS service to assume role"
   type        = string
 }
 
 variable "policies" {
   description = "Map of policy names to policy documents"
-  type = map(string)
+  type = map(any)
   default = {}
 }
 
