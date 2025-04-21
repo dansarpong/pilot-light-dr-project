@@ -1,0 +1,17 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "rds:PromoteReadReplica",
+                "rds:DescribeDBInstances",
+                "ec2:DescribeImages",
+                "ec2:CreateLaunchTemplateVersion",
+                "autoscaling:UpdateAutoScalingGroup",
+                "autoscaling:DescribeAutoScalingGroups"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
