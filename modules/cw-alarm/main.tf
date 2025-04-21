@@ -16,8 +16,5 @@ resource "aws_cloudwatch_metric_alarm" "this" {
   ok_actions                 = var.ok_actions
   insufficient_data_actions  = var.insufficient_data_actions
 
-  tags = merge({
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-  }, var.tags)
+  tags = var.tags
 }

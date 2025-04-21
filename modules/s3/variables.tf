@@ -1,5 +1,5 @@
 variable "environment" {
-  description = "Environment name (dev/staging/prod)"
+  description = "Environment name"
   type        = string
   default     = "dev"
 }
@@ -7,6 +7,7 @@ variable "environment" {
 variable "bucket_name" {
   description = "Base name for the S3 bucket"
   type        = string
+  default     = ""
 }
 
 variable "versioning_enabled" {
@@ -32,12 +33,6 @@ variable "lifecycle_rules" {
   default = []
 }
 
-variable "replication_role_arn" {
-  description = "ARN of IAM role for cross-region replication"
-  type        = string
-  default     = ""
-}
-
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
@@ -52,6 +47,12 @@ variable "is_dr" {
 
 variable "destination_bucket_arn" {
   description = "ARN of the destination bucket for replication"
+  type        = string
+  default     = ""
+}
+
+variable "replication_role_arn" {
+  description = "ARN of IAM role for cross-region replication"
   type        = string
   default     = ""
 }

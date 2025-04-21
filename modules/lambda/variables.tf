@@ -3,11 +3,6 @@ variable "function_name" {
   type        = string
 }
 
-variable "environment" {
-  description = "Environment name"
-  type        = string
-}
-
 variable "runtime" {
   description = "Lambda runtime"
   type        = string

@@ -1,7 +1,13 @@
 variable "environment" {
-  description = "Environment name (dev/staging/prod)"
+  description = "Environment name"
   type        = string
   default     = "dev"
+}
+
+variable "is_dr" {
+  description = "Whether this is a DR RDS"
+  type        = bool
+  default     = false
 }
 
 variable "source_db_arn" {

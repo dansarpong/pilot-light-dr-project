@@ -1,7 +1,8 @@
 # Primary DB Instance
 resource "aws_db_instance" "primary" {
-  count                   = var.source_db_arn == "" ? 1 : 0
+  count                   = var.is_dr == false ? 1 : 0
 
+  identifier              = "${var.environment}-db"
   engine                  = var.engine
   engine_version          = var.engine_version
   instance_class          = var.instance_class
@@ -23,8 +24,9 @@ resource "aws_db_instance" "primary" {
 
 # Cross-Region Read Replica
 resource "aws_db_instance" "cross_region_replica" {
-  count                   = var.source_db_arn != "" ? 1 : 0
+  count                   = var.is_dr == true ? 1 : 0
 
+  identifier              = "${var.environment}-db-replica"
   replicate_source_db    = var.source_db_arn
   instance_class         = var.instance_class
   storage_type           = var.storage_type
