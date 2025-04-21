@@ -11,7 +11,7 @@ resource "aws_launch_template" "this" {
     associate_public_ip_address = false
   }
 
-  user_data = base64encode(templatefile(var.user_data_path, {}))
+  user_data = var.user_data_path != null ? base64encode(templatefile(var.user_data_path, {})) : null
 
   tags = merge({ 
     Name = "${var.environment}-lt"

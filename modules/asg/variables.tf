@@ -32,7 +32,7 @@ variable "subnet_ids" {
 variable "user_data_path" {
   description = "Path to user data script"
   type        = string
-  default     = "user_data.sh"
+  default     = null
 }
 
 variable "desired_capacity" {
