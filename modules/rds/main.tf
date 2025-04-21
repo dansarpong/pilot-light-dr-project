@@ -1,6 +1,6 @@
 # Primary DB Instance
 resource "aws_db_instance" "primary" {
-  provider = aws.primary
+  count                   = var.source_db_arn == "" ? 1 : 0
 
   engine                  = var.engine
   engine_version          = var.engine_version
@@ -18,14 +18,12 @@ resource "aws_db_instance" "primary" {
   publicly_accessible     = false
   skip_final_snapshot     = true
 
-  tags = {
-    Environment = var.environment
-  }
+  tags = var.tags
 }
 
 # Cross-Region Read Replica
 resource "aws_db_instance" "cross_region_replica" {
-  provider = aws.dr
+  count                   = var.source_db_arn != "" ? 1 : 0
 
   replicate_source_db    = var.source_db_arn
   instance_class         = var.instance_class
@@ -35,17 +33,13 @@ resource "aws_db_instance" "cross_region_replica" {
   publicly_accessible    = false
   skip_final_snapshot    = true
 
-  tags = {
-    Environment = "${var.environment}-dr-replica"
-  }
+  tags = var.tags
 }
 
 # DB Subnet Group
 resource "aws_db_subnet_group" "db_subnet_group" {
-  name       = "${var.environment}-${var.region}-db-subnet-group"
+  name       = "${var.environment}-db-subnet-group"
   subnet_ids = var.subnet_ids
 
-  tags = {
-    Environment = var.environment
-  }
+  tags = var.tags
 }

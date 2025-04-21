@@ -1,8 +1,3 @@
-variable "region" {
-  description = "Region for this RDS instance"
-  type        = string
-}
-
 variable "environment" {
   description = "Environment name (dev/staging/prod)"
   type        = string
@@ -36,7 +31,7 @@ variable "engine_version" {
 variable "instance_class" {
   description = "Instance type"
   type        = string
-  default     = "db.t3.micro"
+  default     = "db.t3.small"
 }
 
 variable "allocated_storage" {
@@ -46,9 +41,9 @@ variable "allocated_storage" {
 }
 
 variable "storage_type" {
-  description = "Storage type (gp2/io1)"
+  description = "Storage type"
   type        = string
-  default     = "gp2"
+  default     = "gp3"
 }
 
 variable "db_name" {
@@ -89,4 +84,10 @@ variable "multi_az" {
   description = "Enable Multi-AZ deployment"
   type        = bool
   default     = true
+}
+
+variable "tags" {
+  description = "Common tags to apply to all resources"
+  type        = map(string)
+  default     = {}
 }
