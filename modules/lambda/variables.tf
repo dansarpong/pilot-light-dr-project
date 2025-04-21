@@ -1,21 +1,20 @@
 variable "function_name" {
-  description = "Unique name for the Lambda function"
+  description = "Name for the Lambda function"
   type        = string
 }
 
 variable "environment" {
-  description = "Environment name (dev/staging/prod)"
+  description = "Environment name"
   type        = string
-  default     = "dev"
 }
 
 variable "runtime" {
-  description = "Lambda runtime (e.g., python3.8)"
+  description = "Lambda runtime"
   type        = string
 }
 
 variable "handler" {
-  description = "Entry point handler (e.g., lambda_function.lambda_handler)"
+  description = "Entry point handler"
   type        = string
 }
 
@@ -25,9 +24,8 @@ variable "role_arn" {
 }
 
 variable "local_path" {
-  description = "Local path to code directory (for local source)"
+  description = "Local path to code directory"
   type        = string
-  default     = ""
 }
 
 variable "environment_variables" {
@@ -39,7 +37,7 @@ variable "environment_variables" {
 variable "timeout" {
   description = "Function timeout in seconds"
   type        = number
-  default     = 30
+  default     = 60
 }
 
 variable "memory_size" {

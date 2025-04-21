@@ -1,14 +1,15 @@
 # Lambda Function
 resource "aws_lambda_function" "this" {
-  function_name = "${var.environment}-${var.function_name}"
-  description   = "Lambda function for ${var.environment} environment"
+  function_name = var.function_name
+  description   = "Lambda function for ${var.function_name}"
   runtime       = var.runtime
   handler       = var.handler
   role          = var.role_arn
   timeout       = var.timeout
   memory_size   = var.memory_size
   # publish       = true
-  tags          = merge({ Environment = var.environment }, var.tags)
+  filename         = var.local_path
+  source_code_hash = filebase64sha256(var.local_path)
 
   dynamic "vpc_config" {
     for_each = var.vpc_config != null ? [var.vpc_config] : []
@@ -24,8 +25,7 @@ resource "aws_lambda_function" "this" {
     variables = var.environment_variables
   }
 
-  filename         = var.local_path
-  source_code_hash = filebase64sha256(var.local_path)
+  tags          = var.tags
 }
 
 # Trigger Permissions
