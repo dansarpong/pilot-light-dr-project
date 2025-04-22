@@ -8,6 +8,7 @@
                 "ec2:DescribeImages",
                 "ec2:CreateImage",
                 "ec2:CreateTags",
+                "ec2:CopyImage",
                 "autoscaling:DescribeAutoScalingGroups"
             ],
             "Resource": "*"

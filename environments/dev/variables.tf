@@ -139,7 +139,7 @@ variable "lambda_runtime" {
 variable "lambda_timeout" {
   description = "Timeout for the Lambda function"
   type        = number
-  default     = 300
+  default     = 900
 }
 
 variable "create_ami_handler" {

@@ -1,9 +1,18 @@
 import boto3
 from datetime import datetime
+import time
 
 def get_ssm_parameter(ssm_client, param_name):
     response = ssm_client.get_parameter(Name=param_name)
     return response['Parameter']['Value']
+
+def wait_for_ami_available(ec2_client, image_id):
+    print(f"Waiting for AMI {image_id} to become available...")
+    waiter = ec2_client.get_waiter('image_available')
+    waiter.wait(
+        ImageIds=[image_id],
+        WaiterConfig={'Delay': 15, 'MaxAttempts': 40}  # Max wait time: 10 minutes
+    )
 
 def lambda_handler(event, context):
     # Get SSM client
@@ -38,6 +47,9 @@ def lambda_handler(event, context):
     image_id = image_response['ImageId']
     print(f"Created AMI: {image_id}")
     
+    # Wait for AMI to be available
+    wait_for_ami_available(ec2_client, image_id)
+    
     # Step 3: Copy to destination region
     dest_ec2 = boto3.client('ec2', region_name=dest_region)
     copy_response = dest_ec2.copy_image(
@@ -47,3 +59,10 @@ def lambda_handler(event, context):
     )
     
     print(f"Copied AMI to {dest_region}: {copy_response['ImageId']}")
+    return {
+        'statusCode': 200,
+        'body': {
+            'sourceImageId': image_id,
+            'copiedImageId': copy_response['ImageId']
+        }
+    }
