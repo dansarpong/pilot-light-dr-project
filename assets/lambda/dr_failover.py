@@ -10,8 +10,8 @@ def lambda_handler(event, context):
     
     # Fetch parameters from SSM
     asg_name = get_ssm_parameter(ssm_client, "asg_name")
-    region = get_ssm_parameter(ssm_client, "primary_region")
-    rds_instance_id = get_ssm_parameter(ssm_client, "rds_instance_id")
+    region = get_ssm_parameter(ssm_client, "dr_region")
+    rds_instance_id = get_ssm_parameter(ssm_client, "dr_rds_instance_id")
     
     rds_client = boto3.client('rds', region_name=region)
     asg_client = boto3.client('autoscaling', region_name=region)
