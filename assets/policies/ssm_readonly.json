@@ -9,13 +9,6 @@
             "Resource": [
                 "arn:aws:ssm:*:*:parameter/*"
             ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "logs:CreateLogGroup"
-            ],
-            "Resource": "*"
         }
     ]
 }

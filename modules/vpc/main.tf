@@ -42,6 +42,15 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
+# S3 Endpoint
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = aws_vpc.vpc.id
+  service_name = "com.amazonaws.${data.aws_region.current.name}.s3"
+  vpc_endpoint_type = "Gateway"
+
+  route_table_ids = aws_route_table.public[*].id
+}
+
 # Route Tables
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.vpc.id

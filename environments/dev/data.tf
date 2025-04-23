@@ -4,14 +4,32 @@ data "archive_file" "create_ami_lambda" {
   output_path = "${path.module}/../../assets/lambda/create_ami.zip"
 }
 
-data "archive_file" "dr_failover_lambda" {
+data "archive_file" "ssm_sync_lambda" {
   type        = "zip"
-  source_file = "${path.module}/../../assets/lambda/dr_failover.py"
-  output_path = "${path.module}/../../assets/lambda/dr_failover.zip"
+  source_file = "${path.module}/../../assets/lambda/ssm_sync.py"
+  output_path = "${path.module}/../../assets/lambda/ssm_sync.zip"
 }
 
-data "archive_file" "dr_failback_lambda" {
+data "archive_file" "failover_operations_lambda" {
   type        = "zip"
-  source_file = "${path.module}/../../assets/lambda/dr_failback.py"
-  output_path = "${path.module}/../../assets/lambda/dr_failback.zip"
+  source_file = "${path.module}/../../assets/lambda/failover_operations.py"
+  output_path = "${path.module}/../../assets/lambda/failover_operations.zip"
+}
+
+data "archive_file" "initialize_failover_lambda" {
+  type        = "zip"
+  source_file = "${path.module}/../../assets/lambda/initialize_failover.py"
+  output_path = "${path.module}/../../assets/lambda/initialize_failover.zip"
+}
+
+data "archive_file" "failback_operations_lambda" {
+  type        = "zip"
+  source_file = "${path.module}/../../assets/lambda/failback_operations.py"
+  output_path = "${path.module}/../../assets/lambda/failback_operations.zip"
+}
+
+data "archive_file" "initialize_failback_lambda" {
+  type        = "zip"
+  source_file = "${path.module}/../../assets/lambda/initialize_failback.py"
+  output_path = "${path.module}/../../assets/lambda/initialize_failback.zip"
 }

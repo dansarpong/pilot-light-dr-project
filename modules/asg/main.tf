@@ -1,7 +1,7 @@
 # Launch Templates
 resource "aws_launch_template" "this" {
 
-  name_prefix   = "${var.environment}-lt-"
+  name          = "${var.environment}-lt"
   image_id      = var.ami_id
   instance_type = var.instance_type
   key_name      = var.key_pair_name != "" ? var.key_pair_name : null
@@ -13,7 +13,7 @@ resource "aws_launch_template" "this" {
 
   user_data = var.user_data_path != null ? base64encode(templatefile(var.user_data_path, {})) : null
 
-  tags = merge({ 
+  tags = merge({
     Name = "${var.environment}-lt"
   }, var.tags)
 }
@@ -21,7 +21,7 @@ resource "aws_launch_template" "this" {
 # Auto Scaling Groups
 resource "aws_autoscaling_group" "this" {
 
-  name_prefix = "${var.environment}-asg-"
+  name = "${var.environment}-asg"
 
   launch_template {
     id      = aws_launch_template.this.id

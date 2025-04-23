@@ -26,15 +26,20 @@ resource "aws_s3_bucket_replication_configuration" "replication" {
 
     destination {
       bucket        = var.destination_bucket_arn
-      # storage_class = "STANDARD"
 
       # Required for cross-region replication
-      # metrics {
-      #   status = "Enabled"
-      #   event_threshold {
-      #     minutes = 15
-      #   }
-      # }
+      metrics {
+        status = "Enabled"
+        event_threshold {
+          minutes = 15
+        }
+      }
+      replication_time {
+        status = "Enabled"
+        time {
+          minutes = 15
+        }
+      }
     }
 
     # Required when not using a prefix

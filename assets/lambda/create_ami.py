@@ -1,6 +1,5 @@
 import boto3
 from datetime import datetime
-import time
 
 def get_ssm_parameter(ssm_client, param_name):
     response = ssm_client.get_parameter(Name=param_name)

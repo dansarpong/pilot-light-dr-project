@@ -103,7 +103,7 @@ variable "instance_type" {
 variable "desired_capacity" {
   description = "ASG desired instance count"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "min_size" {
@@ -122,6 +122,12 @@ variable "create_ami_name" {
   description = "Name for the create AMI resources"
   type        = string
   default     = "create-ami"
+}
+
+variable "ssm_sync_name" {
+  description = "Name for the SSM sync resources"
+  type        = string
+  default     = "ssm-sync"
 }
 
 variable "ami_eventbridge_schedule" {
@@ -146,6 +152,12 @@ variable "create_ami_handler" {
   description = "Handler for the Lambda function"
   type        = string
   default = "create_ami.lambda_handler"
+}
+
+variable "ssm_sync_handler" {
+  description = "Handler for the Lambda function"
+  type        = string
+  default = "ssm_sync.lambda_handler"
 }
 
 variable "dr_failover_handler" {

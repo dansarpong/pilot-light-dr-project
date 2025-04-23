@@ -1,0 +1,99 @@
+{
+    "Comment": "DR Failover State Machine",
+    "StartAt": "InitializeFailover",
+    "States": {
+        "InitializeFailover": {
+            "Type": "Task",
+            "Resource": "${InitializeFailoverFunctionArn}",
+            "Next": "PromoteRDSReplica",
+            "ResultPath": "$.params"
+        },
+        "PromoteRDSReplica": {
+            "Type": "Task",
+            "Resource": "${FailoverOperationsFunctionArn}",
+            "Parameters": {
+                "params.$": "$.params",
+                "operation": "PROMOTE_RDS_REPLICA"
+            },
+            "Next": "WaitForRDSPromotion",
+            "ResultPath": "$.rds_promotion"
+        },
+        "WaitForRDSPromotion": {
+            "Type": "Wait",
+            "Seconds": 30,
+            "Next": "CheckRDSStatus"
+        },
+        "CheckRDSStatus": {
+            "Type": "Task",
+            "Resource": "${FailoverOperationsFunctionArn}",
+            "Parameters": {
+                "params.$": "$.params",
+                "operation": "CHECK_RDS_STATUS",
+                "promotion.$": "$.rds_promotion"
+            },
+            "Next": "IsRDSPromoted",
+            "ResultPath": "$.rds_status"
+        },
+        "IsRDSPromoted": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.rds_status.is_available",
+                    "BooleanEquals": true,
+                    "Next": "HandleS3Failover"
+                }
+            ],
+            "Default": "WaitForRDSPromotion"
+        },
+        "HandleS3Failover": {
+            "Type": "Task",
+            "Resource": "${FailoverOperationsFunctionArn}",
+            "Parameters": {
+                "params.$": "$.params",
+                "operation": "S3_FAILOVER"
+            },
+            "Next": "UpdateASGConfiguration",
+            "ResultPath": "$.s3_result"
+        },
+        "UpdateASGConfiguration": {
+            "Type": "Task",
+            "Resource": "${FailoverOperationsFunctionArn}",
+            "Parameters": {
+                "params.$": "$.params",
+                "operation": "UPDATE_ASG"
+            },
+            "Next": "WaitForASGUpdate",
+            "ResultPath": "$.asg_update"
+        },
+        "WaitForASGUpdate": {
+            "Type": "Wait",
+            "Seconds": 30,
+            "Next": "CheckASGStatus"
+        },
+        "CheckASGStatus": {
+            "Type": "Task",
+            "Resource": "${FailoverOperationsFunctionArn}",
+            "Parameters": {
+                "params.$": "$.params",
+                "operation": "CHECK_ASG_STATUS",
+                "asg_update.$": "$.asg_update"
+            },
+            "Next": "IsASGReady",
+            "ResultPath": "$.asg_status"
+        },
+        "IsASGReady": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.asg_status.is_ready",
+                    "BooleanEquals": true,
+                    "Next": "FailoverComplete"
+                }
+            ],
+            "Default": "WaitForASGUpdate"
+        },
+        "FailoverComplete": {
+            "Type": "Succeed"
+        }
+    }
+}
