@@ -5,151 +5,173 @@
         "InitializeFailback": {
             "Type": "Task",
             "Resource": "${InitializeFailbackFunctionArn}",
-            "Next": "DisableSSMSync",
+            "Next": "ParallelOperations",
             "ResultPath": "$.params"
         },
-        "DisableSSMSync": {
-            "Type": "Task",
-            "Resource": "${FailbackOperationsFunctionArn}",
-            "Parameters": {
-                "params.$": "$.params",
-                "operation": "DISABLE_SSM_SYNC"
-            },
-            "Next": "HandleS3Failback",
-            "ResultPath": "$.ssm_sync_result"
-        },
-        "HandleS3Failback": {
-            "Type": "Task",
-            "Resource": "${FailbackOperationsFunctionArn}",
-            "Parameters": {
-                "params.$": "$.params",
-                "operation": "S3_FAILBACK"
-            },
-            "Next": "CreateDRSnapshot",
-            "ResultPath": "$.s3_result"
-        },
-        "CreateDRSnapshot": {
-            "Type": "Task",
-            "Resource": "${FailbackOperationsFunctionArn}",
-            "Parameters": {
-                "params.$": "$.params",
-                "operation": "CREATE_SNAPSHOT"
-            },
-            "Next": "WaitForSnapshot",
-            "ResultPath": "$.snapshot"
-        },
-        "WaitForSnapshot": {
-            "Type": "Wait",
-            "Seconds": 30,
-            "Next": "CheckSnapshotStatus"
-        },
-        "CheckSnapshotStatus": {
-            "Type": "Task",
-            "Resource": "${FailbackOperationsFunctionArn}",
-            "Parameters": {
-                "params.$": "$.params",
-                "operation": "CHECK_SNAPSHOT",
-                "snapshot.$": "$.snapshot"
-            },
-            "Next": "IsSnapshotReady",
-            "ResultPath": "$.snapshot_status"
-        },
-        "IsSnapshotReady": {
-            "Type": "Choice",
-            "Choices": [
+        "ParallelOperations": {
+            "Type": "Parallel",
+            "Branches": [
                 {
-                    "Variable": "$.snapshot_status.is_available",
-                    "BooleanEquals": true,
-                    "Next": "CopySnapshotToPrimary"
+                    "StartAt": "DatabaseRestoration",
+                    "States": {
+                        "DatabaseRestoration": {
+                            "Type": "Task",
+                            "Resource": "${FailbackOperationsFunctionArn}",
+                            "Parameters": {
+                                "params.$": "$.params",
+                                "operation": "CREATE_SNAPSHOT"
+                            },
+                            "Next": "WaitForSnapshot",
+                            "ResultPath": "$.snapshot"
+                        },
+                        "WaitForSnapshot": {
+                            "Type": "Wait",
+                            "Seconds": 30,
+                            "Next": "CheckSnapshotStatus"
+                        },
+                        "CheckSnapshotStatus": {
+                            "Type": "Task",
+                            "Resource": "${FailbackOperationsFunctionArn}",
+                            "Parameters": {
+                                "params.$": "$.params",
+                                "operation": "CHECK_SNAPSHOT",
+                                "snapshot.$": "$.snapshot"
+                            },
+                            "Next": "IsSnapshotReady",
+                            "ResultPath": "$.snapshot_status"
+                        },
+                        "IsSnapshotReady": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.snapshot_status.is_available",
+                                    "BooleanEquals": true,
+                                    "Next": "CopySnapshotToPrimary"
+                                }
+                            ],
+                            "Default": "WaitForSnapshot"
+                        },
+                        "CopySnapshotToPrimary": {
+                            "Type": "Task",
+                            "Resource": "${FailbackOperationsFunctionArn}",
+                            "Parameters": {
+                                "params.$": "$.params",
+                                "operation": "COPY_SNAPSHOT",
+                                "snapshot.$": "$.snapshot"
+                            },
+                            "Next": "WaitForCopiedSnapshot",
+                            "ResultPath": "$.copied_snapshot"
+                        },
+                        "WaitForCopiedSnapshot": {
+                            "Type": "Wait",
+                            "Seconds": 30,
+                            "Next": "CheckCopiedSnapshotStatus"
+                        },
+                        "CheckCopiedSnapshotStatus": {
+                            "Type": "Task",
+                            "Resource": "${FailbackOperationsFunctionArn}",
+                            "Parameters": {
+                                "params.$": "$.params",
+                                "operation": "CHECK_COPIED_SNAPSHOT",
+                                "snapshot.$": "$.copied_snapshot"
+                            },
+                            "Next": "IsCopiedSnapshotReady",
+                            "ResultPath": "$.copied_snapshot_status"
+                        },
+                        "IsCopiedSnapshotReady": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.copied_snapshot_status.is_available",
+                                    "BooleanEquals": true,
+                                    "Next": "RestorePrimaryDB"
+                                }
+                            ],
+                            "Default": "WaitForCopiedSnapshot"
+                        },
+                        "RestorePrimaryDB": {
+                            "Type": "Task",
+                            "Resource": "${FailbackOperationsFunctionArn}",
+                            "Parameters": {
+                                "params.$": "$.params",
+                                "operation": "RESTORE_DB",
+                                "copied_snapshot.$": "$.copied_snapshot"
+                            },
+                            "Next": "WaitForDBRestore",
+                            "ResultPath": "$.restored_db"
+                        },
+                        "WaitForDBRestore": {
+                            "Type": "Wait",
+                            "Seconds": 30,
+                            "Next": "CheckDBRestoreStatus"
+                        },
+                        "CheckDBRestoreStatus": {
+                            "Type": "Task",
+                            "Resource": "${FailbackOperationsFunctionArn}",
+                            "Parameters": {
+                                "params.$": "$.params",
+                                "operation": "CHECK_DB_STATUS",
+                                "db_info.$": "$.restored_db"
+                            },
+                            "Next": "IsDBRestoreComplete",
+                            "ResultPath": "$.db_status"
+                        },
+                        "IsDBRestoreComplete": {
+                            "Type": "Choice",
+                            "Choices": [
+                                {
+                                    "Variable": "$.db_status.is_available",
+                                    "BooleanEquals": true,
+                                    "Next": "CreateDRReadReplica"
+                                }
+                            ],
+                            "Default": "WaitForDBRestore"
+                        },
+                        "CreateDRReadReplica": {
+                            "Type": "Task",
+                            "Resource": "${FailbackOperationsFunctionArn}",
+                            "Parameters": {
+                                "params.$": "$.params",
+                                "operation": "CREATE_READ_REPLICA"
+                            },
+                            "Next": "DatabaseRestoreComplete",
+                            "ResultPath": "$.read_replica"
+                        },
+                        "DatabaseRestoreComplete": {
+                            "Type": "Pass",
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "DisableSSMSync",
+                    "States": {
+                        "DisableSSMSync": {
+                            "Type": "Task",
+                            "Resource": "${FailbackOperationsFunctionArn}",
+                            "Parameters": {
+                                "params.$": "$.params",
+                                "operation": "DISABLE_SSM_SYNC"
+                            },
+                            "Next": "HandleS3Failback",
+                            "ResultPath": "$.ssm_sync_result"
+                        },
+                        "HandleS3Failback": {
+                            "Type": "Task",
+                            "Resource": "${FailbackOperationsFunctionArn}",
+                            "Parameters": {
+                                "params.$": "$.params",
+                                "operation": "S3_FAILBACK"
+                            },
+                            "End": true,
+                            "ResultPath": "$.s3_result"
+                        }
+                    }
                 }
             ],
-            "Default": "WaitForSnapshot"
-        },
-        "CopySnapshotToPrimary": {
-            "Type": "Task",
-            "Resource": "${FailbackOperationsFunctionArn}",
-            "Parameters": {
-                "params.$": "$.params",
-                "operation": "COPY_SNAPSHOT",
-                "snapshot.$": "$.snapshot"
-            },
-            "Next": "WaitForCopiedSnapshot",
-            "ResultPath": "$.copied_snapshot"
-        },
-        "WaitForCopiedSnapshot": {
-            "Type": "Wait",
-            "Seconds": 30,
-            "Next": "CheckCopiedSnapshotStatus"
-        },
-        "CheckCopiedSnapshotStatus": {
-            "Type": "Task",
-            "Resource": "${FailbackOperationsFunctionArn}",
-            "Parameters": {
-                "params.$": "$.params",
-                "operation": "CHECK_COPIED_SNAPSHOT",
-                "snapshot.$": "$.copied_snapshot"
-            },
-            "Next": "IsCopiedSnapshotReady",
-            "ResultPath": "$.copied_snapshot_status"
-        },
-        "IsCopiedSnapshotReady": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$.copied_snapshot_status.is_available",
-                    "BooleanEquals": true,
-                    "Next": "RestorePrimaryDB"
-                }
-            ],
-            "Default": "WaitForCopiedSnapshot"
-        },
-        "RestorePrimaryDB": {
-            "Type": "Task",
-            "Resource": "${FailbackOperationsFunctionArn}",
-            "Parameters": {
-                "params.$": "$.params",
-                "operation": "RESTORE_DB",
-                "copied_snapshot.$": "$.copied_snapshot"
-            },
-            "Next": "WaitForDBRestore",
-            "ResultPath": "$.restored_db"
-        },
-        "WaitForDBRestore": {
-            "Type": "Wait",
-            "Seconds": 30,
-            "Next": "CheckDBRestoreStatus"
-        },
-        "CheckDBRestoreStatus": {
-            "Type": "Task",
-            "Resource": "${FailbackOperationsFunctionArn}",
-            "Parameters": {
-                "params.$": "$.params",
-                "operation": "CHECK_DB_STATUS",
-                "db_info.$": "$.restored_db"
-            },
-            "Next": "IsDBRestoreComplete",
-            "ResultPath": "$.db_status"
-        },
-        "IsDBRestoreComplete": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$.db_status.is_available",
-                    "BooleanEquals": true,
-                    "Next": "CreateDRReadReplica"
-                }
-            ],
-            "Default": "WaitForDBRestore"
-        },
-        "CreateDRReadReplica": {
-            "Type": "Task",
-            "Resource": "${FailbackOperationsFunctionArn}",
-            "Parameters": {
-                "params.$": "$.params",
-                "operation": "CREATE_READ_REPLICA"
-            },
             "Next": "UpdateASGConfiguration",
-            "ResultPath": "$.read_replica"
+            "ResultPath": "$.parallel_results",
+            "OutputPath": "$"
         },
         "UpdateASGConfiguration": {
             "Type": "Task",

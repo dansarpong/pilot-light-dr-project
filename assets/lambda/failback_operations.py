@@ -62,7 +62,7 @@ def create_snapshot(params):
     
     dr_rds_client.create_db_snapshot(
         DBSnapshotIdentifier=snapshot_id,
-        DBInstanceIdentifier=params['dr_rds_endpoint'].split('.')[0]
+        DBInstanceIdentifier=params['dr_rds_name']
     )
     
     return {"snapshot_id": snapshot_id}
@@ -103,15 +103,32 @@ def check_copied_snapshot_status(params, snapshot):
 
 def restore_db(params, copied_snapshot):
     primary_rds_client = boto3.client('rds', region_name=params['primary_region'])
-    primary_db_identifier = params['primary_rds_endpoint'].split('.')[0]
-    
+    primary_db_identifier = params['primary_rds_name']
+
+    # Get the original DB configuration before deleting
+    try:
+        original_config = primary_rds_client.describe_db_instances(
+            DBInstanceIdentifier=primary_db_identifier
+        )['DBInstances'][0]
+        security_group_ids = [sg['VpcSecurityGroupId'] for sg in original_config['VpcSecurityGroups']]
+        subnet_group_name = original_config['DBSubnetGroup']['DBSubnetGroupName']
+    except primary_rds_client.exceptions.DBInstanceNotFoundFault:
+        print("DB instance not found, will use default configuration")
+        security_group_ids = []
+        subnet_group_name = None
+    except Exception as e:
+        print(f"Warning: Could not fetch original config: {str(e)}")
+        security_group_ids = []
+        subnet_group_name = None
+
+    # Delete existing instance if it exists
     try:
         primary_rds_client.delete_db_instance(
             DBInstanceIdentifier=primary_db_identifier,
             SkipFinalSnapshot=True,
             DeleteAutomatedBackups=True
         )
-        
+
         waiter = primary_rds_client.get_waiter('db_instance_deleted')
         waiter.wait(
             DBInstanceIdentifier=primary_db_identifier,
@@ -119,11 +136,21 @@ def restore_db(params, copied_snapshot):
         )
     except primary_rds_client.exceptions.DBInstanceNotFoundFault:
         print("DB instance does not exist, proceeding with restore...")
-    
-    primary_rds_client.restore_db_instance_from_db_snapshot(
-        DBInstanceIdentifier=primary_db_identifier,
-        DBSnapshotIdentifier=copied_snapshot['primary_snapshot_id']
-    )
+
+    # Restore the instance with original security groups and subnet group
+    restore_params = {
+        'DBInstanceIdentifier': primary_db_identifier,
+        'DBSnapshotIdentifier': copied_snapshot['primary_snapshot_id'],
+        'MultiAZ': True,
+        'PubliclyAccessible': False,
+    }
+
+    if security_group_ids:
+        restore_params['VpcSecurityGroupIds'] = security_group_ids
+    if subnet_group_name:
+        restore_params['DBSubnetGroupName'] = subnet_group_name
+
+    primary_rds_client.restore_db_instance_from_db_snapshot(**restore_params)
     
     return {"db_identifier": primary_db_identifier}
 
@@ -140,30 +167,55 @@ def check_db_status(params, db_info):
 
 def create_read_replica(params):
     dr_rds_client = boto3.client('rds', region_name=params['dr_region'])
-    dr_instance_id = params['dr_rds_endpoint'].split('.')[0]
+    dr_instance_identifier = params['dr_rds_name']
     
     try:
+        # Get the original DR instance configuration before deleting
+        try:
+            original_config = dr_rds_client.describe_db_instances(
+                DBInstanceIdentifier=dr_instance_identifier
+            )['DBInstances'][0]
+            security_group_ids = [sg['VpcSecurityGroupId'] for sg in original_config['VpcSecurityGroups']]
+            subnet_group_name = original_config['DBSubnetGroup']['DBSubnetGroupName']
+        except dr_rds_client.exceptions.DBInstanceNotFoundFault:
+            print(f"DB instance {dr_instance_identifier} not found, will use default configuration")
+            security_group_ids = []
+            subnet_group_name = None
+        except Exception as e:
+            print(f"Warning: Could not fetch original config: {str(e)}")
+            security_group_ids = []
+            subnet_group_name = None
+
         # First try to delete the existing instance if it exists
         try:
             dr_rds_client.delete_db_instance(
-                DBInstanceIdentifier=dr_instance_id,
+                DBInstanceIdentifier=dr_instance_identifier,
                 SkipFinalSnapshot=True,
                 DeleteAutomatedBackups=True
             )
             
             waiter = dr_rds_client.get_waiter('db_instance_deleted')
             waiter.wait(
-                DBInstanceIdentifier=dr_instance_id,
+                DBInstanceIdentifier=dr_instance_identifier,
                 WaiterConfig={'Delay': 30, 'MaxAttempts': 60}
             )
         except dr_rds_client.exceptions.DBInstanceNotFoundFault:
-            print(f"DB instance {dr_instance_id} does not exist, proceeding with creation...")
+            print(f"DB instance {dr_instance_identifier} does not exist, proceeding with creation...")
         
-        # Create the read replica
-        dr_rds_client.create_db_instance_read_replica(
-            DBInstanceIdentifier=dr_instance_id,
-            SourceDBInstanceIdentifier=f"arn:aws:rds:{params['primary_region']}:{params['account_id']}:db:{params['primary_rds_endpoint'].split('.')[0]}"
-        )
+        # Create the read replica with original configuration
+        replica_params = {
+            'DBInstanceIdentifier': dr_instance_identifier,
+            'SourceDBInstanceIdentifier': f"arn:aws:rds:{params['primary_region']}:{params['account_id']}:db:{params['primary_rds_name']}",
+            'MultiAZ': True,
+            'PubliclyAccessible': False,
+        }
+
+        if security_group_ids:
+            replica_params['VpcSecurityGroupIds'] = security_group_ids
+        if subnet_group_name:
+            replica_params['DBSubnetGroupName'] = subnet_group_name
+
+        dr_rds_client.create_db_instance_read_replica(**replica_params)
         
         return {"status": "Read replica creation initiated"}
         
@@ -174,6 +226,24 @@ def update_asg(params):
     primary_ec2_client = boto3.client('ec2', region_name=params['primary_region'])
     primary_asg_client = boto3.client('autoscaling', region_name=params['primary_region'])
     dr_asg_client = boto3.client('autoscaling', region_name=params['dr_region'])
+    primary_rds_client = boto3.client('rds', region_name=params['primary_region'])
+    ssm_client = boto3.client('ssm', region_name=params['primary_region'])
+
+    primary_db_identifier = params['primary_rds_name']
+
+    # Get the new endpoint
+    response = primary_rds_client.describe_db_instances(
+        DBInstanceIdentifier=primary_db_identifier
+    )
+    new_endpoint = response['DBInstances'][0]['Endpoint']['Address']
+
+    # Update the SSM parameter with the new endpoint
+    ssm_client.put_parameter(
+        Name='primary_rds_name',
+        Value=new_endpoint,
+        Type='String',
+        Overwrite=True
+    )
     
     # Get latest AMI
     images = primary_ec2_client.describe_images(
@@ -234,26 +304,24 @@ def update_asg(params):
 
 def disable_ssm_sync(params):
     events_client = boto3.client('events', region_name=params['dr_region'])
-    lambda_client = boto3.client('lambda', region_name=params['dr_region'])
+    # lambda_client = boto3.client('lambda', region_name=params['dr_region'])
     
-    rule_name = f"{params['environment']}-ssm-sync-rule-dr"
-    function_name = f"{params['environment']}-ssm-sync-lambda-dr"
+    rule_name = f"ssm-sync-rule-dr"
+    # function_name = f"{params['environment']}-ssm-sync-lambda-dr"
     
-    # Remove Lambda permission for EventBridge
+    # # Remove Lambda permission for EventBridge
+    # try:
+    #     lambda_client.remove_permission(
+    #         FunctionName=function_name,
+    #         StatementId=f"Allow-EventBridge-Invoke-{rule_name}"
+    #     )
+    # except Exception as e:
+    #     print(f"Warning: Could not remove Lambda permission: {str(e)}")
+    
+    # Disable the rule
     try:
-        lambda_client.remove_permission(
-            FunctionName=function_name,
-            StatementId=f"Allow-EventBridge-Invoke-{rule_name}"
-        )
-    except Exception as e:
-        print(f"Warning: Could not remove Lambda permission: {str(e)}")
-    
-    # Disable the rule by setting an empty pattern
-    try:
-        events_client.put_rule(
-            Name=rule_name,
-            EventPattern="{}",
-            State='DISABLED'
+        events_client.disable_rule(
+            Name=rule_name
         )
     except Exception as e:
         print(f"Warning: Could not disable rule: {str(e)}")

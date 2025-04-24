@@ -9,8 +9,8 @@ module "lambda_create_ami_role" {
   managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
 
   policies = {
-    create_ami = file("${path.module}/../../assets/policies/lambda_create_ami.json")
-    ssm_access = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    create_ami  = file("${path.module}/../../assets/policies/lambda_create_ami.json")
+    ssm_access  = file("${path.module}/../../assets/policies/ssm_readonly.json")
     lambda_logs = file("${path.module}/../../assets/policies/lambda_logs.json")
   }
 }
@@ -25,7 +25,7 @@ module "lambda_ssm_sync_role" {
   managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
 
   policies = {
-    ssm_access = file("${path.module}/../../assets/policies/ssm_fullaccess.json")
+    ssm_access  = file("${path.module}/../../assets/policies/ssm_fullaccess.json")
     lambda_logs = file("${path.module}/../../assets/policies/lambda_logs.json")
   }
 }
@@ -42,8 +42,8 @@ module "lambda_failover_role" {
   ]
 
   policies = {
-    failover   = file("${path.module}/../../assets/policies/lambda_failover.json")
-    ssm_access = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    failover    = file("${path.module}/../../assets/policies/lambda_failover.json")
+    ssm_access  = file("${path.module}/../../assets/policies/ssm_readonly.json")
     lambda_logs = file("${path.module}/../../assets/policies/lambda_logs.json")
   }
 }
@@ -60,8 +60,8 @@ module "lambda_failback_role" {
   ]
 
   policies = {
-    failback   = file("${path.module}/../../assets/policies/lambda_failback.json")
-    ssm_access = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    failback    = file("${path.module}/../../assets/policies/lambda_failback.json")
+    ssm_access  = file("${path.module}/../../assets/policies/ssm_readonly.json")
     lambda_logs = file("${path.module}/../../assets/policies/lambda_logs.json")
   }
 }
@@ -118,15 +118,18 @@ module "step_functions_failback_role" {
   }
 }
 
-# # EC2 Instance Role
-# module "ec2_instance_role" {
-#   source = "../../modules/iam"
+# EC2 Instance Role
+module "ec2_instance_role" {
+  source = "../../modules/iam"
 
-#   environment         = var.environment
-#   name                = "ec2-instance-role"
-#   assume_role_service = "ec2.amazonaws.com"
+  environment             = var.environment
+  name                    = "${var.environment}-ec2-instance-role"
+  assume_role_service     = "ec2.amazonaws.com"
+  create_instance_profile = true
 
-#   policies = {
-#     s3_access = file("${path.module}/../../assets/policies/s3_access.json")
-#   }
-# }
+  policies = {
+    instance_profile = file("${path.module}/../../assets/policies/ec2_instance.json")
+    ssm_access = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    s3_access  = file("${path.module}/../../assets/policies/s3_access.json")
+  }
+}

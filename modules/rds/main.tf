@@ -27,13 +27,20 @@ resource "aws_db_instance" "cross_region_replica" {
   count                   = var.is_dr == true ? 1 : 0
 
   identifier              = "${var.environment}-db-replica"
-  replicate_source_db    = var.source_db_arn
-  instance_class         = var.instance_class
+  replicate_source_db     = var.source_db_arn
+  instance_class          = var.instance_class
   storage_type           = var.storage_type
   vpc_security_group_ids = var.security_group_ids
   db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name
   publicly_accessible    = false
   skip_final_snapshot    = true
+
+  # Add lifecycle block to prevent modifications that could cause issues
+  lifecycle {
+    ignore_changes = [
+      replicate_source_db
+    ]
+  }
 
   tags = var.tags
 }

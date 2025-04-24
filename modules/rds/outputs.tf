@@ -17,3 +17,8 @@ output "subnet_group_name" {
   description = "Database Subnet Group name"
   value       = aws_db_subnet_group.db_subnet_group.name
 }
+
+output "db_identifier" {
+  description = "Database identifier"
+  value       = var.source_db_arn == "" ? aws_db_instance.primary[0].identifier : aws_db_instance.cross_region_replica[0].identifier
+}

@@ -4,7 +4,22 @@ import json
 
 def promote_rds_replica(params):
     rds_client = boto3.client('rds', region_name=params['dr_region'])
-    db_identifier = params['dr_rds_endpoint'].split('.')[0]
+    db_identifier = params['dr_rds_name']
+    ssm_client = boto3.client('ssm', region_name=params['primary_region'])
+
+    # Get the new endpoint
+    response = rds_client.describe_db_instances(
+        DBInstanceIdentifier=db_identifier
+    )
+    new_endpoint = response['DBInstances'][0]['Endpoint']['Address']
+
+    # Update the SSM parameter with the new endpoint
+    ssm_client.put_parameter(
+        Name='dr_rds_name',
+        Value=new_endpoint,
+        Type='String',
+        Overwrite=True
+    )
     
     rds_client.promote_read_replica(
         DBInstanceIdentifier=db_identifier
@@ -145,40 +160,38 @@ def check_asg_status(params, asg_update):
 
 def enable_ssm_sync(params):
     events_client = boto3.client('events', region_name=params['dr_region'])
-    lambda_client = boto3.client('lambda', region_name=params['dr_region'])
+    # lambda_client = boto3.client('lambda', region_name=params['dr_region'])
     
-    rule_name = f"{params['environment']}-ssm-sync-rule-dr"
-    function_name = f"{params['environment']}-ssm-sync-lambda-dr"
+    rule_name = f"ssm-sync-rule-dr"
+    # function_name = f"{params['environment']}-ssm-sync-lambda-dr"
     
-    # Define the event pattern for SSM parameter changes
-    event_pattern = {
-        "source": ["aws.ssm"],
-        "detail-type": ["AWS API Call via CloudTrail"],
-        "detail": {
-            "eventSource": ["ssm.amazonaws.com"],
-            "eventName": ["PutParameter", "DeleteParameter", "DeleteParameters"]
-        }
-    }
+    # # Define the event pattern for SSM parameter changes
+    # event_pattern = {
+    #     "source": ["aws.ssm"],
+    #     "detail-type": ["AWS API Call via CloudTrail"],
+    #     "detail": {
+    #         "eventSource": ["ssm.amazonaws.com"],
+    #         "eventName": ["PutParameter", "DeleteParameter", "DeleteParameters"]
+    #     }
+    # }
     
-    # Enable the EventBridge rule by setting its pattern
-    rule_response = events_client.put_rule(
-        Name=rule_name,
-        EventPattern=json.dumps(event_pattern),
-        State='ENABLED'
+    # Enable the EventBridge rule
+    rule_response = events_client.enable_rule(
+        Name=rule_name
     )
     
-    # Add Lambda permission for EventBridge
-    try:
-        lambda_client.add_permission(
-            FunctionName=function_name,
-            StatementId=f"Allow-EventBridge-Invoke-{rule_name}",
-            Action='lambda:InvokeFunction',
-            Principal='events.amazonaws.com',
-            SourceArn=rule_response['RuleArn']
-        )
-    except lambda_client.exceptions.ResourceConflictException:
-        # Permission already exists, ignore
-        pass
+    # # Add Lambda permission for EventBridge
+    # try:
+    #     lambda_client.add_permission(
+    #         FunctionName=function_name,
+    #         StatementId=f"Allow-EventBridge-Invoke-{rule_name}",
+    #         Action='lambda:InvokeFunction',
+    #         Principal='events.amazonaws.com',
+    #         SourceArn=rule_response['RuleArn']
+    #     )
+    # except lambda_client.exceptions.ResourceConflictException:
+    #     # Permission already exists, ignore
+    #     pass
     
     return {"status": "SSM sync enabled in DR region"}
 

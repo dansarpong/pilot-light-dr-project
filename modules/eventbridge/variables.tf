@@ -36,3 +36,15 @@ variable "target_id" {
   description = "Target ID for the event rule"
   type        = string
 }
+
+variable "state" {
+  description = "State of the event rule"
+  type        = string
+  default     = "ENABLED"
+}
+
+variable "role_arn" {
+  description = "ARN of the IAM role that allows EventBridge to invoke the target"
+  type        = string
+  default     = null
+}

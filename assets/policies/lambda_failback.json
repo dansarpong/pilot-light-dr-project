@@ -5,6 +5,7 @@
             "Effect": "Allow",
             "Action": [
                 "iam:PassRole",
+                "events:DisableRule",
                 "ec2:RunInstances",
                 "ec2:DescribeImages",
                 "ec2:CreateLaunchTemplateVersion",
@@ -25,7 +26,6 @@
                 "s3:PutLifecycleConfiguration",
                 "s3:PutReplicationConfiguration",
                 "s3:PutBucketLifecycleConfiguration",
-                "events:PutRule",
                 "lambda:RemovePermission"
             ],
             "Resource": "*"

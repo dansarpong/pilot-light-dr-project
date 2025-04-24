@@ -11,8 +11,8 @@ module "vpc_primary" {
 
 
 # Security Groups
-# ELB SG
-module "sg_elb_primary" {
+# Load Balancer SG
+module "sg_lb_primary" {
   source = "../../modules/security-group"
 
   providers = {
@@ -20,7 +20,7 @@ module "sg_elb_primary" {
   }
 
   vpc_id      = module.vpc_primary.vpc_id
-  name        = var.elb_sg_name
+  name        = var.lb_sg_name
   description = "Security group for load balancer"
 
   ingress_rules = [
@@ -65,7 +65,15 @@ module "sg_asg_primary" {
       from_port       = 80
       to_port         = 80
       cidr_blocks     = []
-      security_groups = [module.sg_elb_primary.security_group_id] #module.elb_primary.elb_sg_id
+      security_groups = [module.sg_lb_primary.security_group_id]
+    },
+    {
+      description     = "Allow SSH from anywhere"
+      protocol        = "tcp"
+      from_port       = 22
+      to_port         = 22
+      cidr_blocks     = ["0.0.0.0/0"]
+      security_groups = []
     }
   ]
 
@@ -117,25 +125,20 @@ module "sg_rds_primary" {
 }
 
 
-# ELB
-# module "elb_primary" {
-#   source = "../../modules/elb"
+# Load Balancer
+module "lb_primary" {
+  source = "../../modules/lb"
 
-#   providers = {
-#     aws = aws.primary
-#   }
+  providers = {
+    aws = aws.primary
+  }
 
-#   environment       = var.environment
-#   name              = var.elb_name
-#   security_group_id = module.sg_elb_primary.security_group_id
-#   subnet_ids        = module.vpc_primary.public_subnets
-
-#   health_check_target = "HTTP:80/"
-
-#   tags = {
-#     Region = "primary"
-#   }
-# }
+  name               = "${var.environment}-primary-lb"
+  security_group_ids = [module.sg_lb_primary.security_group_id]
+  subnet_ids         = module.vpc_primary.public_subnets
+  vpc_id             = module.vpc_primary.vpc_id
+  target_type        = "instance"
+}
 
 
 # ASG
@@ -146,14 +149,16 @@ module "asg_primary" {
     aws = aws.primary
   }
 
-  environment       = var.environment
-  ami_id            = var.primary_ami_id
-  instance_type     = var.instance_type
-  security_group_id = module.sg_asg_primary.security_group_id
-  subnet_ids        = module.vpc_primary.public_subnets
-  desired_capacity  = var.desired_capacity
-  min_size          = var.min_size
-  max_size          = var.max_size
+  environment               = var.environment
+  ami_id                    = var.primary_ami_id
+  instance_type             = var.instance_type
+  iam_instance_profile_name = module.ec2_instance_role.instance_profile_name
+  security_group_id         = module.sg_asg_primary.security_group_id
+  subnet_ids                = module.vpc_primary.public_subnets
+  desired_capacity          = var.desired_capacity
+  min_size                  = var.min_size
+  max_size                  = var.max_size
+  target_group_arns         = [module.lb_primary.target_group_arn]
 
   user_data_path = "${path.module}/../../assets/user_data.sh"
 }
@@ -272,14 +277,7 @@ module "eventbridge_ssm_sync_rule" {
   target_id   = "${var.ssm_sync_name}-rule-target"
   event_type  = "health"
 
-  event_pattern = jsonencode({
-    source      = ["aws.ssm"]
-    detail-type = ["AWS API Call via CloudTrail"]
-    detail = {
-      eventSource = ["ssm.amazonaws.com"]
-      eventName   = ["PutParameter", "DeleteParameter", "DeleteParameters"]
-    }
-  })
+  event_pattern = jsonencode(var.ssm_sync_event_pattern)
 }
 
 
@@ -365,15 +363,15 @@ module "ssm_parameters" {
       value       = module.asg_primary.asg_name
       description = "Name of the Auto Scaling Group"
     },
-    "primary_rds_endpoint" = {
+    "primary_rds_name" = {
       type        = "String"
-      value       = module.rds_primary.db_endpoint
-      description = "Endpoint of the primary RDS instance"
+      value       = module.rds_primary.db_identifier
+      description = "Name of the primary RDS instance"
     },
-    "dr_rds_endpoint" = {
+    "dr_rds_name" = {
       type        = "String"
-      value       = module.rds_dr.db_endpoint
-      description = "Endpoint of the DR RDS instance"
+      value       = module.rds_dr.db_identifier
+      description = "Name of the DR RDS instance"
     },
     "primary_bucket_name" = {
       type        = "String"

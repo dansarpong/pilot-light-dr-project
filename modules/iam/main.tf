@@ -41,3 +41,11 @@ resource "aws_iam_role_policy_attachment" "managed" {
   role       = aws_iam_role.this.name
   policy_arn = each.value
 }
+
+# Instance Profile
+resource "aws_iam_instance_profile" "this" {
+  count = var.create_instance_profile ? 1 : 0
+
+  name = "${var.name}-profile"
+  role = aws_iam_role.this.name
+}

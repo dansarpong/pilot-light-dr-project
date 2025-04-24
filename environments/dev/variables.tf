@@ -46,22 +46,16 @@ variable "asg_sg_name" {
   default     = "asg-sg"
 }
 
-variable "elb_sg_name" {
+variable "lb_sg_name" {
   description = "Name suffix for the load balancer security group"
   type        = string
-  default     = "elb-sg"
+  default     = "lb-sg"
 }
 
 variable "rds_sg_name" {
   description = "Name suffix for the RDS security group"
   type        = string
   default     = "rds-sg"
-}
-
-variable "elb_name" {
-  description = "Name suffix for the load balancer"
-  type        = string
-  default     = "elb"
 }
 
 variable "rds_db_name" {
@@ -130,6 +124,26 @@ variable "ssm_sync_name" {
   default     = "ssm-sync"
 }
 
+variable "ssm_sync_event_pattern" {
+  description = "Event pattern for the SSM sync EventBridge rule"
+  type = object({
+    source      = list(string)
+    detail-type = list(string)
+    detail = object({
+      eventSource = list(string)
+      eventName   = list(string)
+    })
+  })
+  default = {
+    source      = ["aws.ssm"]
+    detail-type = ["AWS API Call via CloudTrail"]
+    detail = {
+      eventSource = ["ssm.amazonaws.com"]
+      eventName   = ["PutParameter", "DeleteParameter", "DeleteParameters"]
+    }
+  }
+}
+
 variable "ami_eventbridge_schedule" {
   description = "Schedule expression for the AMI EventBridge rule"
   type        = string
@@ -151,19 +165,19 @@ variable "lambda_timeout" {
 variable "create_ami_handler" {
   description = "Handler for the Lambda function"
   type        = string
-  default = "create_ami.lambda_handler"
+  default     = "create_ami.lambda_handler"
 }
 
 variable "ssm_sync_handler" {
   description = "Handler for the Lambda function"
   type        = string
-  default = "ssm_sync.lambda_handler"
+  default     = "ssm_sync.lambda_handler"
 }
 
 variable "dr_failover_handler" {
   description = "Handler for the Lambda function"
   type        = string
-  default = "dr_failover.lambda_handler"
+  default     = "dr_failover.lambda_handler"
 }
 
 variable "dr_failback_handler" {

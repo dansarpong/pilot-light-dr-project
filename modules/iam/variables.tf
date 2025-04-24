@@ -25,6 +25,12 @@ variable "managed_policy_arns" {
   default     = []
 }
 
+variable "create_instance_profile" {
+  description = "Whether to create an instance profile"
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)

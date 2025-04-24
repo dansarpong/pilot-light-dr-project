@@ -11,8 +11,8 @@ module "vpc_dr" {
 
 
 # Security Groups
-# DR ELB SG
-module "sg_elb_dr" {
+# DR lb SG
+module "sg_lb_dr" {
   source = "../../modules/security-group"
 
   providers = {
@@ -20,7 +20,7 @@ module "sg_elb_dr" {
   }
 
   vpc_id      = module.vpc_dr.vpc_id
-  name        = var.elb_sg_name
+  name        = var.lb_sg_name
   description = "Security group for load balancer"
 
   ingress_rules = [
@@ -64,7 +64,7 @@ module "sg_asg_dr" {
       protocol        = "tcp"
       from_port       = 80
       to_port         = 80
-      security_groups = [module.sg_elb_dr.security_group_id] #module.elb_app_dr.elb_sg_id
+      security_groups = [module.sg_lb_dr.security_group_id]
       cidr_blocks     = []
     }
   ]
@@ -117,24 +117,19 @@ module "sg_rds_dr" {
 }
 
 
-# DR ELB
-# module "elb_app_dr" {
-#   source = "../../modules/elb"
+# DR lb
+# module "lb_app_dr" {
+#   source = "../../modules/lb"
 
 #   providers = {
 #     aws = aws.dr
 #   }
 
-#   environment       = var.environment
-#   name              = var.elb_name
-#   security_group_id = module.sg_elb_dr.security_group_id
-#   subnet_ids        = module.vpc_dr.public_subnets
-
-#   health_check_target = "HTTP:80/"
-
-#   tags = {
-#     Region = "dr"
-#   }
+#   name               = "${var.environment}-lb"
+#   security_group_ids = [module.sg_lb_dr.security_group_id]
+#   subnet_ids         = module.vpc_dr.public_subnets
+#   vpc_id             = module.vpc_dr.vpc_id
+#   target_type        = "instance"
 # }
 
 
@@ -146,14 +141,16 @@ module "asg_dr" {
     aws = aws.dr
   }
 
-  environment       = var.environment
-  ami_id            = var.dr_ami_id
-  instance_type     = var.instance_type
-  security_group_id = module.sg_asg_dr.security_group_id
-  subnet_ids        = module.vpc_dr.public_subnets
-  desired_capacity  = 0
-  min_size          = 0
-  max_size          = var.max_size
+  environment               = var.environment
+  ami_id                    = var.dr_ami_id
+  instance_type             = var.instance_type
+  iam_instance_profile_name = module.ec2_instance_role.instance_profile_name
+  security_group_id         = module.sg_asg_dr.security_group_id
+  subnet_ids                = module.vpc_dr.public_subnets
+  desired_capacity          = 0
+  min_size                  = 0
+  max_size                  = var.max_size
+  target_group_arns         = []
 }
 
 
@@ -292,7 +289,7 @@ module "lambda_failback_operations" {
   ]
 }
 
-# Backup SSM Sync Function (Disabled)
+# Backup SSM Sync Function
 module "lambda_ssm_sync_dr" {
   source = "../../modules/lambda"
 
@@ -307,8 +304,15 @@ module "lambda_ssm_sync_dr" {
   role_arn      = module.lambda_ssm_sync_role.role_arn
   local_path    = data.archive_file.ssm_sync_lambda.output_path
 
-  # No triggers configured to keep it disabled
-  triggers = []
+  triggers = [
+    {
+      type   = "eventbridge_ssm_sync_rule_dr"
+      source = "events.amazonaws.com"
+      config = {
+        source_arn = module.eventbridge_ssm_sync_rule_dr.event_rule_arn
+      }
+    }
+  ]
 
   environment_variables = {
     TARGET_REGION = var.primary_region
@@ -339,6 +343,7 @@ module "eventbridge_dr_failover" {
   })
   arn       = module.dr_failover_step_function.state_machine_arn
   target_id = "${var.environment}-dr-failover-target"
+  role_arn  = module.step_functions_failover_role.role_arn
 }
 
 # DR EventBridge Failback
@@ -363,6 +368,7 @@ module "eventbridge_dr_failback" {
   })
   arn       = module.dr_failback_step_function.state_machine_arn
   target_id = "${var.environment}-dr-failback-target"
+  role_arn  = module.step_functions_failback_role.role_arn
 }
 
 # SSM Sync Rule (Disabled)
@@ -379,7 +385,8 @@ module "eventbridge_ssm_sync_rule_dr" {
   target_id   = "${var.ssm_sync_name}-rule-dr-target"
   event_type  = "health"
 
-  event_pattern = ""  # Empty pattern means no events will be matched
+  event_pattern = jsonencode(var.ssm_sync_event_pattern)
+  state         = "DISABLED"
 }
 
 # SFN

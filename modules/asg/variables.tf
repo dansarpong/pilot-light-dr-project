@@ -16,7 +16,13 @@ variable "instance_type" {
 variable "key_pair_name" {
   description = "Key pair for SSH access"
   type        = string
-  default = ""
+  default     = ""
+}
+
+variable "iam_instance_profile_name" {
+  description = "IAM instance profile name"
+  type        = string
+  default     = null
 }
 
 variable "security_group_id" {
@@ -26,6 +32,11 @@ variable "security_group_id" {
 
 variable "subnet_ids" {
   description = "List of subnet IDs"
+  type        = list(string)
+}
+
+variable "target_group_arns" {
+  description = "List of target group ARNs"
   type        = list(string)
 }
 
