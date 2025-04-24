@@ -232,6 +232,34 @@ def update_asg(params):
     
     return {"status": "ASG configuration updated"}
 
+def disable_ssm_sync(params):
+    events_client = boto3.client('events', region_name=params['dr_region'])
+    lambda_client = boto3.client('lambda', region_name=params['dr_region'])
+    
+    rule_name = f"{params['environment']}-ssm-sync-rule-dr"
+    function_name = f"{params['environment']}-ssm-sync-lambda-dr"
+    
+    # Remove Lambda permission for EventBridge
+    try:
+        lambda_client.remove_permission(
+            FunctionName=function_name,
+            StatementId=f"Allow-EventBridge-Invoke-{rule_name}"
+        )
+    except Exception as e:
+        print(f"Warning: Could not remove Lambda permission: {str(e)}")
+    
+    # Disable the rule by setting an empty pattern
+    try:
+        events_client.put_rule(
+            Name=rule_name,
+            EventPattern="{}",
+            State='DISABLED'
+        )
+    except Exception as e:
+        print(f"Warning: Could not disable rule: {str(e)}")
+    
+    return {"status": "SSM sync disabled in DR region"}
+
 def lambda_handler(event, context):
     operation = event['operation']
     params = event['params']
@@ -245,7 +273,8 @@ def lambda_handler(event, context):
         'RESTORE_DB': lambda: restore_db(params, event['copied_snapshot']),
         'CHECK_DB_STATUS': lambda: check_db_status(params, event['db_info']),
         'CREATE_READ_REPLICA': lambda: create_read_replica(params),
-        'UPDATE_ASG': lambda: update_asg(params)
+        'UPDATE_ASG': lambda: update_asg(params),
+        'DISABLE_SSM_SYNC': lambda: disable_ssm_sync(params)
     }
     
     return operations[operation]()

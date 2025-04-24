@@ -5,8 +5,18 @@
         "InitializeFailback": {
             "Type": "Task",
             "Resource": "${InitializeFailbackFunctionArn}",
-            "Next": "HandleS3Failback",
+            "Next": "DisableSSMSync",
             "ResultPath": "$.params"
+        },
+        "DisableSSMSync": {
+            "Type": "Task",
+            "Resource": "${FailbackOperationsFunctionArn}",
+            "Parameters": {
+                "params.$": "$.params",
+                "operation": "DISABLE_SSM_SYNC"
+            },
+            "Next": "HandleS3Failback",
+            "ResultPath": "$.ssm_sync_result"
         },
         "HandleS3Failback": {
             "Type": "Task",

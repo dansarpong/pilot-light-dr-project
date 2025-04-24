@@ -52,8 +52,18 @@
                 "params.$": "$.params",
                 "operation": "S3_FAILOVER"
             },
-            "Next": "UpdateASGConfiguration",
+            "Next": "EnableSSMSync",
             "ResultPath": "$.s3_result"
+        },
+        "EnableSSMSync": {
+            "Type": "Task",
+            "Resource": "${FailoverOperationsFunctionArn}",
+            "Parameters": {
+                "params.$": "$.params",
+                "operation": "ENABLE_SSM_SYNC"
+            },
+            "Next": "UpdateASGConfiguration",
+            "ResultPath": "$.ssm_sync_result"
         },
         "UpdateASGConfiguration": {
             "Type": "Task",

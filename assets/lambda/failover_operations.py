@@ -1,5 +1,6 @@
 import boto3
 import time
+import json
 
 def promote_rds_replica(params):
     rds_client = boto3.client('rds', region_name=params['dr_region'])
@@ -142,6 +143,45 @@ def check_asg_status(params, asg_update):
         "asg_name": asg_update['asg_name']
     }
 
+def enable_ssm_sync(params):
+    events_client = boto3.client('events', region_name=params['dr_region'])
+    lambda_client = boto3.client('lambda', region_name=params['dr_region'])
+    
+    rule_name = f"{params['environment']}-ssm-sync-rule-dr"
+    function_name = f"{params['environment']}-ssm-sync-lambda-dr"
+    
+    # Define the event pattern for SSM parameter changes
+    event_pattern = {
+        "source": ["aws.ssm"],
+        "detail-type": ["AWS API Call via CloudTrail"],
+        "detail": {
+            "eventSource": ["ssm.amazonaws.com"],
+            "eventName": ["PutParameter", "DeleteParameter", "DeleteParameters"]
+        }
+    }
+    
+    # Enable the EventBridge rule by setting its pattern
+    rule_response = events_client.put_rule(
+        Name=rule_name,
+        EventPattern=json.dumps(event_pattern),
+        State='ENABLED'
+    )
+    
+    # Add Lambda permission for EventBridge
+    try:
+        lambda_client.add_permission(
+            FunctionName=function_name,
+            StatementId=f"Allow-EventBridge-Invoke-{rule_name}",
+            Action='lambda:InvokeFunction',
+            Principal='events.amazonaws.com',
+            SourceArn=rule_response['RuleArn']
+        )
+    except lambda_client.exceptions.ResourceConflictException:
+        # Permission already exists, ignore
+        pass
+    
+    return {"status": "SSM sync enabled in DR region"}
+
 def lambda_handler(event, context):
     operation = event['operation']
     params = event['params']
@@ -151,7 +191,8 @@ def lambda_handler(event, context):
         'CHECK_RDS_STATUS': lambda: check_rds_status(params, event['promotion']),
         'S3_FAILOVER': lambda: handle_s3_failover(params),
         'UPDATE_ASG': lambda: update_asg(params),
-        'CHECK_ASG_STATUS': lambda: check_asg_status(params, event['asg_update'])
+        'CHECK_ASG_STATUS': lambda: check_asg_status(params, event['asg_update']),
+        'ENABLE_SSM_SYNC': lambda: enable_ssm_sync(params)
     }
     
     return operations[operation]()

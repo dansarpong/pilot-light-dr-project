@@ -292,6 +292,29 @@ module "lambda_failback_operations" {
   ]
 }
 
+# Backup SSM Sync Function (Disabled)
+module "lambda_ssm_sync_dr" {
+  source = "../../modules/lambda"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  function_name = "${var.ssm_sync_name}-lambda-dr"
+  runtime       = var.lambda_runtime
+  timeout       = var.lambda_timeout
+  handler       = var.ssm_sync_handler
+  role_arn      = module.lambda_ssm_sync_role.role_arn
+  local_path    = data.archive_file.ssm_sync_lambda.output_path
+
+  # No triggers configured to keep it disabled
+  triggers = []
+
+  environment_variables = {
+    TARGET_REGION = var.primary_region
+  }
+}
+
 
 # EventBridge
 # DR EventBridge Failover
@@ -340,6 +363,23 @@ module "eventbridge_dr_failback" {
   })
   arn       = module.dr_failback_step_function.state_machine_arn
   target_id = "${var.environment}-dr-failback-target"
+}
+
+# SSM Sync Rule (Disabled)
+module "eventbridge_ssm_sync_rule_dr" {
+  source = "../../modules/eventbridge"
+
+  providers = {
+    aws = aws.dr
+  }
+
+  name        = "${var.ssm_sync_name}-rule-dr"
+  description = "Rule to synchronize SSM parameters (DR backup)"
+  arn         = module.lambda_ssm_sync_dr.function_arn
+  target_id   = "${var.ssm_sync_name}-rule-dr-target"
+  event_type  = "health"
+
+  event_pattern = ""  # Empty pattern means no events will be matched
 }
 
 # SFN
