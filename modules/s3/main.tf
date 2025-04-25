@@ -23,6 +23,7 @@ resource "aws_s3_bucket_replication_configuration" "replication" {
   rule {
     id     = "cross-region-replication"
     status = "Enabled"
+    priority = 1
 
     destination {
       bucket        = var.destination_bucket_arn
