@@ -178,7 +178,7 @@ aws lambda invoke \
 ## Limitations and Considerations
 
 1. **Asynchronous Replication**
-   - Potential for data loss during failover
+   - Potential for data loss during failover and failback
    - RPO dependent on network latency
 
 2. **DNS Propagation**
