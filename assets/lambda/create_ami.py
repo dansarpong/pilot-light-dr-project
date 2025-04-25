@@ -2,10 +2,16 @@ import boto3
 from datetime import datetime
 
 def get_ssm_parameter(ssm_client, param_name):
+    """
+    Fetches a parameter from SSM Parameter Store.
+    """
     response = ssm_client.get_parameter(Name=param_name)
     return response['Parameter']['Value']
 
 def wait_for_ami_available(ec2_client, image_id):
+    """
+    Waits for an AMI to become available.
+    """
     print(f"Waiting for AMI {image_id} to become available...")
     waiter = ec2_client.get_waiter('image_available')
     waiter.wait(
@@ -14,10 +20,12 @@ def wait_for_ami_available(ec2_client, image_id):
     )
 
 def lambda_handler(event, context):
-    # Get SSM client
+    """
+    Creates an AMI from an instance in an Auto Scaling Group and copies it to a destination region.
+    Returns a dictionary with the source and copied image IDs.
+    """
     ssm_client = boto3.client('ssm')
     
-    # Fetch parameters from SSM
     asg_name = get_ssm_parameter(ssm_client, "asg_name")
     dest_region = get_ssm_parameter(ssm_client, "dr_region")
     current_region = get_ssm_parameter(ssm_client, "primary_region")
@@ -25,7 +33,7 @@ def lambda_handler(event, context):
     ec2_client = boto3.client('ec2', region_name=current_region)
     asg_client = boto3.client('autoscaling', region_name=current_region)
     
-    # Step 1: Get instance from ASG
+    # Get instance from ASG
     asg_response = asg_client.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
     instances = asg_response['AutoScalingGroups'][0]['Instances']
     
@@ -35,7 +43,7 @@ def lambda_handler(event, context):
     instance_id = instances[0]['InstanceId']
     print(f"Selected Instance ID from ASG: {instance_id}")
     
-    # Step 2: Create AMI
+    # Create AMI
     ami_name = f"AMI-{asg_name}-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
     image_response = ec2_client.create_image(
         InstanceId=instance_id,
@@ -49,7 +57,7 @@ def lambda_handler(event, context):
     # Wait for AMI to be available
     wait_for_ami_available(ec2_client, image_id)
     
-    # Step 3: Copy to destination region
+    # Copy to destination region
     dest_ec2 = boto3.client('ec2', region_name=dest_region)
     copy_response = dest_ec2.copy_image(
         Name=f"Copied-{ami_name}",

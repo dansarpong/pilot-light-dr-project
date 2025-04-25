@@ -1,9 +1,12 @@
 import boto3
 
 def lambda_handler(event, context):
+    """
+    Initializes parameters for failback operations.
+    Returns a dictionary of parameters.
+    """
     ssm_client = boto3.client('ssm')
     
-    # Fetch all required parameters
     params = {
         "asg_name": ssm_client.get_parameter(Name="asg_name")['Parameter']['Value'],
         "dr_region": ssm_client.get_parameter(Name="dr_region")['Parameter']['Value'],

@@ -2,6 +2,9 @@ import boto3
 import time
 
 def setup_primary_replication(s3_client, primary_bucket, dr_bucket, replication_role_arn):
+    """
+    Configures S3 cross-region replication from primary bucket to DR bucket.
+    """
     s3_client.put_bucket_versioning(
         Bucket=primary_bucket,
         VersioningConfiguration={'Status': 'Enabled'}
@@ -37,6 +40,10 @@ def setup_primary_replication(s3_client, primary_bucket, dr_bucket, replication_
     )
 
 def handle_s3_failback(params):
+    """
+    Handles S3 failback process by disabling DR replication and setting up primary replication.
+    Returns status of the failback operation.
+    """
     dr_s3_client = boto3.client('s3', region_name=params['dr_region'])
     primary_s3_client = boto3.client('s3', region_name=params['primary_region'])
     
@@ -55,6 +62,10 @@ def handle_s3_failback(params):
     return {"status": "S3 failback completed"}
 
 def create_snapshot(params):
+    """
+    Creates a snapshot of the DR RDS instance.
+    Returns the created snapshot identifier.
+    """
     dr_rds_client = boto3.client('rds', region_name=params['dr_region'])
     timestamp = time.strftime('%Y-%m-%d-%H-%M-%S')
     snapshot_id = f"failback-snapshot-{timestamp}"
@@ -67,6 +78,10 @@ def create_snapshot(params):
     return {"snapshot_id": snapshot_id}
 
 def check_snapshot_status(params, snapshot):
+    """
+    Checks the status of a DB snapshot in the DR region.
+    Returns snapshot availability status and ID.
+    """
     dr_rds_client = boto3.client('rds', region_name=params['dr_region'])
     response = dr_rds_client.describe_db_snapshots(
         DBSnapshotIdentifier=snapshot['snapshot_id']
@@ -78,6 +93,10 @@ def check_snapshot_status(params, snapshot):
     }
 
 def copy_snapshot(params, snapshot):
+    """
+    Copies a DB snapshot from DR region to primary region.
+    Returns copied snapshot identifier in primary region.
+    """
     primary_rds_client = boto3.client('rds', region_name=params['primary_region'])
     primary_snapshot_id = f"copied-{snapshot['snapshot_id']}"
     
@@ -90,6 +109,10 @@ def copy_snapshot(params, snapshot):
     return {"primary_snapshot_id": primary_snapshot_id}
 
 def check_copied_snapshot_status(params, snapshot):
+    """
+    Checks the status of a copied DB snapshot in the primary region.
+    Returns snapshot availability status and ID.
+    """
     primary_rds_client = boto3.client('rds', region_name=params['primary_region'])
     response = primary_rds_client.describe_db_snapshots(
         DBSnapshotIdentifier=snapshot['primary_snapshot_id']
@@ -101,6 +124,11 @@ def check_copied_snapshot_status(params, snapshot):
     }
 
 def restore_db(params, copied_snapshot):
+    """
+    Restores a DB instance in the primary region from a snapshot.
+    Preserves original security groups and subnet group if available.
+    Returns restored DB instance identifier.
+    """
     primary_rds_client = boto3.client('rds', region_name=params['primary_region'])
     primary_db_identifier = params['primary_rds_name']
 
@@ -154,6 +182,10 @@ def restore_db(params, copied_snapshot):
     return {"db_identifier": primary_db_identifier}
 
 def check_db_status(params, db_info):
+    """
+    Checks the status of a DB instance in the primary region.
+    Returns DB instance availability status and identifier.
+    """
     primary_rds_client = boto3.client('rds', region_name=params['primary_region'])
     response = primary_rds_client.describe_db_instances(
         DBInstanceIdentifier=db_info['db_identifier']
@@ -165,6 +197,11 @@ def check_db_status(params, db_info):
     }
 
 def create_read_replica(params):
+    """
+    Creates a read replica of the primary RDS instance in the DR region.
+    Preserves original security groups and subnet group if available.
+    Returns status of the read replica creation.
+    """
     dr_rds_client = boto3.client('rds', region_name=params['dr_region'])
     dr_instance_identifier = params['dr_rds_name']
     
@@ -222,27 +259,14 @@ def create_read_replica(params):
         raise Exception(f"Failed to create read replica: {str(e)}")
 
 def update_asg(params):
+    """
+    Updates the launch template of the primary ASG with the latest AMI.
+    Scales up the primary ASG and scales down the DR ASG.
+    Returns status of the ASG configuration update.
+    """
     primary_ec2_client = boto3.client('ec2', region_name=params['primary_region'])
     primary_asg_client = boto3.client('autoscaling', region_name=params['primary_region'])
     dr_asg_client = boto3.client('autoscaling', region_name=params['dr_region'])
-    primary_rds_client = boto3.client('rds', region_name=params['primary_region'])
-    ssm_client = boto3.client('ssm', region_name=params['primary_region'])
-
-    primary_db_identifier = params['primary_rds_name']
-
-    # Get the new endpoint
-    response = primary_rds_client.describe_db_instances(
-        DBInstanceIdentifier=primary_db_identifier
-    )
-    new_endpoint = response['DBInstances'][0]['Endpoint']['Address']
-
-    # Update the SSM parameter with the new endpoint
-    ssm_client.put_parameter(
-        Name='primary_rds_name',
-        Value=new_endpoint,
-        Type='String',
-        Overwrite=True
-    )
     
     # Get latest AMI
     images = primary_ec2_client.describe_images(
@@ -262,9 +286,9 @@ def update_asg(params):
     if not images['Images']:
         raise Exception("No AMIs found in primary region")
     
-    latest_ami = sorted(images['Images'], 
-                       key=lambda x: x['CreationDate'],
-                       reverse=True)[0]
+    latest_ami = sorted(images['Images'],
+                        key=lambda x: x['CreationDate'],
+                        reverse=True)[0]
     
     # Update primary ASG
     asg_response = primary_asg_client.describe_auto_scaling_groups(
@@ -302,20 +326,12 @@ def update_asg(params):
     return {"status": "ASG configuration updated"}
 
 def disable_ssm_sync(params):
+    """
+    Disables the SSM sync EventBridge rule in the DR region.
+    Returns status of the rule disablement.
+    """
     events_client = boto3.client('events', region_name=params['dr_region'])
-    # lambda_client = boto3.client('lambda', region_name=params['dr_region'])
-    
-    rule_name = f"ssm-sync-rule-dr"
-    # function_name = f"{params['environment']}-ssm-sync-lambda-dr"
-    
-    # # Remove Lambda permission for EventBridge
-    # try:
-    #     lambda_client.remove_permission(
-    #         FunctionName=function_name,
-    #         StatementId=f"Allow-EventBridge-Invoke-{rule_name}"
-    #     )
-    # except Exception as e:
-    #     print(f"Warning: Could not remove Lambda permission: {str(e)}")
+    rule_name = "ssm-sync-rule-dr"
     
     # Disable the rule
     try:
@@ -328,6 +344,10 @@ def disable_ssm_sync(params):
     return {"status": "SSM sync disabled in DR region"}
 
 def lambda_handler(event, context):
+    """
+    Handles failback operations based on the provided event.
+    Returns the result of the executed operation.
+    """
     operation = event['operation']
     params = event['params']
     

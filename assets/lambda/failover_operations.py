@@ -1,6 +1,10 @@
 import boto3
 
 def promote_rds_replica(params):
+    """
+    Promotes the DR RDS read replica to primary.
+    Returns the promoted DB instance identifier.
+    """
     rds_client = boto3.client('rds', region_name=params['dr_region'])
     db_identifier = params['dr_rds_name']
     
@@ -11,6 +15,10 @@ def promote_rds_replica(params):
     return {"db_identifier": db_identifier}
 
 def check_rds_status(params, promotion):
+    """
+    Checks the status of the promoted RDS instance.
+    Returns DB instance availability status and identifier.
+    """
     rds_client = boto3.client('rds', region_name=params['dr_region'])
     response = rds_client.describe_db_instances(
         DBInstanceIdentifier=promotion['db_identifier']
@@ -22,6 +30,10 @@ def check_rds_status(params, promotion):
     }
 
 def handle_s3_failover(params):
+    """
+    Handles S3 failover process by disabling primary replication and setting up reverse replication.
+    Returns status of the failover operation.
+    """
     dr_s3_client = boto3.client('s3', region_name=params['dr_region'])
     primary_s3_client = boto3.client('s3', region_name=params['primary_region'])
     
@@ -72,6 +84,11 @@ def handle_s3_failover(params):
     return {"status": "S3 failover completed"}
 
 def update_asg(params):
+    """
+    Updates the launch template of the DR ASG with the latest copied AMI.
+    Scales up the DR ASG.
+    Returns name of the ASG.
+    """
     ec2_client = boto3.client('ec2', region_name=params['dr_region'])
     asg_client = boto3.client('autoscaling', region_name=params['dr_region'])
     
@@ -125,6 +142,10 @@ def update_asg(params):
     return {"asg_name": params['asg_name']}
 
 def check_asg_status(params, asg_update):
+    """
+    Checks the status of the DR ASG.
+    Returns ASG readiness status and name.
+    """
     asg_client = boto3.client('autoscaling', region_name=params['dr_region'])
     response = asg_client.describe_auto_scaling_groups(
         AutoScalingGroupNames=[asg_update['asg_name']]
@@ -142,6 +163,10 @@ def check_asg_status(params, asg_update):
     }
 
 def enable_ssm_sync(params):
+    """
+    Enables the SSM sync EventBridge rule in the DR region.
+    Returns status of the rule enablement.
+    """
     events_client = boto3.client('events', region_name=params['dr_region'])
     
     rule_name = "ssm-sync-rule-dr"
@@ -154,6 +179,10 @@ def enable_ssm_sync(params):
     return {"status": "SSM sync enabled in DR region"}
 
 def lambda_handler(event, context):
+    """
+    Handles failover operations based on the provided event.
+    Returns the result of the executed operation.
+    """
     operation = event['operation']
     params = event['params']
     

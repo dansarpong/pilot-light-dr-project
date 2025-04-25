@@ -3,6 +3,11 @@ import os
 import json
 
 def lambda_handler(event, context):
+    """
+    Synchronizes SSM parameters between two regions based on the provided event.
+    Returns a success message or an error message.
+    """
+    # Log the event and context for debugging
     print("Received event:", json.dumps(event, indent=2))
     print("Context:", context)
 
