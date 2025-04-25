@@ -19,7 +19,8 @@ This document describes the implementation of a Pilot Light disaster recovery (D
 - S3 bucket with cross-region replication enabled
 - Lambda functions with configured event sources
 - Application Load Balancer
-- EventBridge scheduled AMI creation
+- EventBridge rule for scheduled AMI creation
+- EventBridge rule for automated SSM parameter synchronization
 
 ### DR Region (Pilot Light)
 
@@ -29,11 +30,13 @@ This document describes the implementation of a Pilot Light disaster recovery (D
 - S3 bucket (replication target)
 - Lambda functions (disabled state)
 - Application Load Balancer (pre-configured)
+- EventBridge rule for automated failover and failback
+- EventBridge rule for automated SSM parameter synchronization (DR backup, disabled)
 
 ### Automation Components
 
-- Lambda functions for failover/failback operations
-- EventBridge rules for automated failover
+- Lambda and Step functions for failover and failback operations
+- EventBridge rules for automated failover and failback
 - SSM Parameter Store for configuration
 - IAM roles and policies
 
@@ -59,7 +62,7 @@ This document describes the implementation of a Pilot Light disaster recovery (D
 
 ### Automated Failover
 
-Triggered by CloudWatch monitoring or manual intervention:
+Triggered by EventBridge rule or manual intervention:
 
 1. **Database Promotion**
    - DR Lambda promotes RDS read replica to primary
@@ -79,10 +82,9 @@ Triggered by CloudWatch monitoring or manual intervention:
 Can be triggered through AWS Console or CLI:
 
 ```bash
-aws lambda invoke \
-  --function-name dev-dr-failover \
-  --region us-east-1 \
-  output.json
+aws stepfunctions start-execution \
+  --state-machine-arn arn:aws:states:<dr-region>:<account-id>:stateMachine:dev-dr-failover \
+  --name <execution-name>
 ```
 
 ### Recovery Time
@@ -98,7 +100,7 @@ aws lambda invoke \
 
 ### Automated Failback
 
-Triggered when primary region is restored:
+Triggered by EventBridge rule or manual intervention:
 
 1. **Database Restoration**
    - Create snapshot of DR database
@@ -116,10 +118,9 @@ Triggered when primary region is restored:
 Can be triggered through AWS Console or CLI:
 
 ```bash
-aws lambda invoke \
-  --function-name dev-dr-failback \
-  --region us-east-1 \
-  output.json
+aws stepfunctions start-execution \
+  --state-machine-arn arn:aws:states:<dr-region>:<account-id>:stateMachine:dev-dr-failback \
+  --name <execution-name>
 ```
 
 ## Testing and Maintenance
@@ -130,22 +131,13 @@ aws lambda invoke \
 2. Quarterly full DR simulation
 3. Bi-annual failback testing
 
-### Monitoring
-
-- CloudWatch alarms for key metrics:
-  - EC2 instance health
-  - RDS replica lag
-  - Lambda function execution errors
-- Health checks for DR readiness
-- EventBridge rules for automated testing
 
 ### Maintenance Tasks
 
-1. Regular validation of AMI copying
-2. Monitoring of S3 replication metrics
-3. Testing of Lambda functions
-4. Review and update of IAM policies
-5. Regular updates to DR documentation
+1. Regular validation of AMI copying and replication
+2. Testing of Lambda functions
+3. Review and update of IAM policies
+4. Regular updates to DR documentation
 
 ## Cost Considerations
 
@@ -155,11 +147,13 @@ aws lambda invoke \
 
 ### DR Region
 
-- RDS Read Replica: Full instance cost
-- S3: Replication and storage costs
-- ASG: Minimal costs (0 instances)
 - Load Balancer: Hourly cost
+- ASG: Minimal costs (0 instances)
+- S3: Replication and storage costs
+- RDS Read Replica: Full instance cost
 - Lambda: Minimal costs (disabled functions)
+- EventBridge: Minimal costs
+- Step Functions: Minimal costs
 
 ## Security
 
@@ -183,22 +177,8 @@ aws lambda invoke \
 
 2. **DNS Propagation**
    - May affect actual RTO
-   - Consider Route 53 health checks
+   - Consider AWS Global Accelerator/Route 53 health checks
 
 3. **Cost vs. Recovery Time**
    - Faster recovery requires more running resources
    - Balance based on business requirements
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Failed Failover**
-   - Check Lambda execution logs
-   - Verify IAM permissions
-   - Validate RDS replica status
-
-2. **Replication Delays**
-   - Monitor RDS replication lag
-   - Check S3 replication metrics
-   - Verify network connectivity
