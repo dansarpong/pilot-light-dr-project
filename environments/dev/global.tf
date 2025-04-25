@@ -10,7 +10,7 @@ module "lambda_create_ami_role" {
 
   policies = {
     create_ami  = file("${path.module}/../../assets/policies/lambda_create_ami.json")
-    ssm_access  = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    ssm_access  = file("${path.module}/../../assets/policies/ssm_fullaccess.json")
     lambda_logs = file("${path.module}/../../assets/policies/lambda_logs.json")
   }
 }
@@ -43,7 +43,7 @@ module "lambda_failover_role" {
 
   policies = {
     failover    = file("${path.module}/../../assets/policies/lambda_failover.json")
-    ssm_access  = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    ssm_access  = file("${path.module}/../../assets/policies/ssm_fullaccess.json")
     lambda_logs = file("${path.module}/../../assets/policies/lambda_logs.json")
   }
 }
@@ -61,7 +61,7 @@ module "lambda_failback_role" {
 
   policies = {
     failback    = file("${path.module}/../../assets/policies/lambda_failback.json")
-    ssm_access  = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    ssm_access  = file("${path.module}/../../assets/policies/ssm_fullaccess.json")
     lambda_logs = file("${path.module}/../../assets/policies/lambda_logs.json")
   }
 }
@@ -95,7 +95,7 @@ module "step_functions_failover_role" {
 
   policies = {
     failover   = file("${path.module}/../../assets/policies/lambda_failover.json")
-    ssm_access = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    ssm_access = file("${path.module}/../../assets/policies/ssm_fullaccess.json")
     sfn_access = file("${path.module}/../../assets/policies/sfn_access.json")
   }
 }
@@ -113,7 +113,7 @@ module "step_functions_failback_role" {
 
   policies = {
     failback   = file("${path.module}/../../assets/policies/lambda_failback.json")
-    ssm_access = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    ssm_access = file("${path.module}/../../assets/policies/ssm_fullaccess.json")
     sfn_access = file("${path.module}/../../assets/policies/sfn_access.json")
   }
 }
@@ -129,7 +129,7 @@ module "ec2_instance_role" {
 
   policies = {
     instance_profile = file("${path.module}/../../assets/policies/ec2_instance.json")
-    ssm_access = file("${path.module}/../../assets/policies/ssm_readonly.json")
+    ssm_access = file("${path.module}/../../assets/policies/ssm_fullaccess.json")
     s3_access  = file("${path.module}/../../assets/policies/s3_access.json")
   }
 }

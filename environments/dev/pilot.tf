@@ -118,19 +118,19 @@ module "sg_rds_dr" {
 
 
 # DR lb
-# module "lb_app_dr" {
-#   source = "../../modules/lb"
+module "lb_app_dr" {
+  source = "../../modules/lb"
 
-#   providers = {
-#     aws = aws.dr
-#   }
+  providers = {
+    aws = aws.dr
+  }
 
-#   name               = "${var.environment}-lb"
-#   security_group_ids = [module.sg_lb_dr.security_group_id]
-#   subnet_ids         = module.vpc_dr.public_subnets
-#   vpc_id             = module.vpc_dr.vpc_id
-#   target_type        = "instance"
-# }
+  name               = "${var.environment}-lb"
+  security_group_ids = [module.sg_lb_dr.security_group_id]
+  subnet_ids         = module.vpc_dr.public_subnets
+  vpc_id             = module.vpc_dr.vpc_id
+  target_type        = "instance"
+}
 
 
 # DR ASG
@@ -150,7 +150,7 @@ module "asg_dr" {
   desired_capacity          = 0
   min_size                  = 0
   max_size                  = var.max_size
-  target_group_arns         = []
+  target_group_arns         = [module.lb_app_dr.target_group_arn]
 }
 
 

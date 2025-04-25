@@ -17,6 +17,10 @@ resource "aws_launch_template" "this" {
 
   user_data = var.user_data_path != null ? base64encode(templatefile(var.user_data_path, {})) : null
 
+  lifecycle {
+    ignore_changes = [ image_id ]
+  }
+
   tags = merge({
     Name = "${var.environment}-lt"
   }, var.tags)

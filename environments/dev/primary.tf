@@ -66,14 +66,6 @@ module "sg_asg_primary" {
       to_port         = 80
       cidr_blocks     = []
       security_groups = [module.sg_lb_primary.security_group_id]
-    },
-    {
-      description     = "Allow SSH from anywhere"
-      protocol        = "tcp"
-      from_port       = 22
-      to_port         = 22
-      cidr_blocks     = ["0.0.0.0/0"]
-      security_groups = []
     }
   ]
 

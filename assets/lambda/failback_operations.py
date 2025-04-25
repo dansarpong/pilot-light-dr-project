@@ -1,6 +1,5 @@
 import boto3
 import time
-from datetime import datetime
 
 def setup_primary_replication(s3_client, primary_bucket, dr_bucket, replication_role_arn):
     s3_client.put_bucket_versioning(
@@ -12,7 +11,7 @@ def setup_primary_replication(s3_client, primary_bucket, dr_bucket, replication_
         'Role': replication_role_arn,
         'Rules': [
             {
-                'ID': 'primary-replication-rule',
+                'ID': 'cross-region-replication',
                 'Status': 'Enabled',
                 'Priority': 1,
                 'DeleteMarkerReplication': {'Status': 'Enabled'},
