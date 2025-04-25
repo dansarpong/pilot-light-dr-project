@@ -12,7 +12,7 @@ resource "aws_launch_template" "this" {
 
   network_interfaces {
     security_groups             = [var.security_group_id]
-    associate_public_ip_address = true
+    associate_public_ip_address = false
   }
 
   user_data = var.user_data_path != null ? base64encode(templatefile(var.user_data_path, {})) : null
@@ -43,6 +43,10 @@ resource "aws_autoscaling_group" "this" {
 
   target_group_arns = var.target_group_arns
   health_check_type = "ELB"
+
+  lifecycle {
+    ignore_changes = [ launch_template ]
+  }
 
   dynamic "tag" {
     for_each = merge(
